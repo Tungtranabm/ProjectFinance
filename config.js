@@ -17,7 +17,7 @@ const CONFIG = {
   APP_VERSION: "1.02",
 
   // Dán OAuth Client ID (dạng "xxxx.apps.googleusercontent.com") vào đây
-  CLIENT_ID: "YOUR_CLIENT_ID.apps.googleusercontent.com",
+  CLIENT_ID: "721535080990-kg13d10cfhf2a5lqgdk4mlogcuq69hf6.apps.googleusercontent.com",
 
   // Tên file Google Sheet sẽ được tạo tự động trong Drive của bạn
   SPREADSHEET_NAME: "Project Finance Data",
