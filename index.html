@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Project Finance</title>
+<meta name="description" content="Project Finance - theo dõi thu chi dự án nội thất, đồng bộ với Google Sheets" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="theme-color" content="#0f172a" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===================== MÀN HÌNH ĐĂNG NHẬP ===================== -->
+  <section id="loginScreen" class="screen">
+    <div class="login-card">
+      <div class="logo">₫</div>
+      <h1 id="appTitle">Project Finance</h1>
+      <p class="subtitle">Theo dõi thu chi dự án theo Nhóm / Hạng mục, so sánh ngân sách dự kiến với thực chi, dữ liệu lưu trực tiếp trên Google Sheets của riêng bạn.</p>
+      <button id="loginBtn" class="btn btn-primary btn-block">Đăng nhập với Google</button>
+      <p id="loginError" class="error-text hidden"></p>
+      <p class="fine-print">Ứng dụng chỉ tạo &amp; truy cập MỘT file Google Sheet do chính nó tạo ra, không đụng tới các file khác trong Drive của bạn.</p>
+      <p id="appVersionLogin" class="version-tag"></p>
+    </div>
+  </section>
+
+  <!-- ===================== MÀN HÌNH CHÍNH ===================== -->
+  <section id="appScreen" class="screen hidden">
+    <header class="topbar">
+      <div class="topbar-title">
+        <span class="logo-sm">₫</span>
+        <span id="appTitleTop">Project Finance</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="syncStatus" class="sync-badge" title="Trạng thái đồng bộ">●</span>
+        <button id="settingsBtn" class="icon-btn" title="Cài đặt Nhà thầu / Danh mục">⚙</button>
+        <button id="logoutBtn" class="icon-btn" title="Đăng xuất">⏻</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- Tổng quan ngân sách -->
+      <section class="summary-card">
+        <div class="summary-total">
+          <span class="summary-label" id="remainingLabel">Còn lại so với ngân sách</span>
+          <span id="totalRemaining" class="summary-value">0 ₫</span>
+        </div>
+        <div class="summary-row">
+          <div class="summary-mini budget">
+            <span>Ngân sách dự kiến</span>
+            <strong id="totalBudget">0 ₫</strong>
+          </div>
+          <div class="summary-mini expense">
+            <span>Đã chi</span>
+            <strong id="totalSpent">0 ₫</strong>
+          </div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-mini income">
+            <span>Thu tháng này</span>
+            <strong id="monthIncome">0 ₫</strong>
+          </div>
+          <div class="summary-mini expense">
+            <span>Chi tháng này</span>
+            <strong id="monthExpense">0 ₫</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ngân sách theo nhóm -->
+      <section class="budget-section">
+        <div class="section-header">
+          <h2>Ngân sách theo nhóm</h2>
+        </div>
+        <div id="budgetList" class="budget-list"></div>
+      </section>
+
+      <!-- Danh sách nhà thầu / đội thi công -->
+      <section class="wallets-section">
+        <div class="section-header">
+          <h2>Nhà thầu / Đội thi công</h2>
+          <button id="addNhaThauBtn" class="link-btn">+ Thêm</button>
+        </div>
+        <div id="nhaThauList" class="wallet-list"></div>
+      </section>
+
+      <!-- Bộ lọc -->
+      <section class="filter-row">
+        <select id="filterMonth"></select>
+        <select id="filterNhaThau">
+          <option value="">Tất cả nhà thầu</option>
+        </select>
+      </section>
+
+      <!-- Danh sách giao dịch -->
+      <section class="transactions-section">
+        <div class="section-header">
+          <h2>Giao dịch</h2>
+        </div>
+        <div id="transactionList" class="transaction-list">
+          <p class="empty-hint">Chưa có giao dịch nào. Bấm nút "+" để thêm.</p>
+        </div>
+      </section>
+    </main>
+
+    <button id="addTransactionBtn" class="fab" title="Thêm giao dịch">+</button>
+  </section>
+
+  <!-- ===================== MODAL: THÊM/SỬA GIAO DỊCH ===================== -->
+  <div id="txModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="txModalTitle">Thêm giao dịch</h3>
+        <button class="icon-btn" data-close-modal>✕</button>
+      </div>
+      <form id="txForm" class="modal-body">
+        <input type="hidden" id="txId" />
+        <div class="type-toggle">
+          <button type="button" class="type-btn expense active" data-type="Chi">Chi tiêu</button>
+          <button type="button" class="type-btn income" data-type="Thu">Thu nhập</button>
+        </div>
+
+        <label class="field">
+          <span>Số tiền (₫)</span>
+          <input type="number" id="txAmount" min="0" step="1000" inputmode="numeric" required />
+        </label>
+
+        <label class="field">
+          <span>Ngày</span>
+          <input type="date" id="txDate" required />
+        </label>
+
+        <label class="field">
+          <span>Nhóm</span>
+          <select id="txNhom" required></select>
+        </label>
+
+        <label class="field">
+          <span>Hạng mục</span>
+          <select id="txHangMuc" required></select>
+        </label>
+
+        <label class="field">
+          <span>Nhà thầu / Đội thi công</span>
+          <select id="txNhaThau" required></select>
+        </label>
+
+        <label class="field">
+          <span>Ghi chú (không bắt buộc)</span>
+          <input type="text" id="txNote" maxlength="200" placeholder="VD: Thanh toán đợt 1" />
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" id="txDeleteBtn" class="btn btn-danger hidden">Xoá</button>
+          <button type="submit" class="btn btn-primary">Lưu giao dịch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: CÀI ĐẶT NHÀ THẦU / DANH MỤC ===================== -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Nhà thầu &amp; Danh mục</h3>
+        <button class="icon-btn" data-close-modal>✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-block">
+          <h4>Thêm nhà thầu / đội thi công mới</h4>
+          <form id="newNhaThauForm" class="inline-form">
+            <input type="text" id="newNhaThauName" placeholder="Tên, VD: Đội điện nước" required maxlength="60" />
+            <input type="text" id="newNhaThauNote" placeholder="Ghi chú (không bắt buộc)" maxlength="120" />
+            <button type="submit" class="btn btn-secondary">Thêm</button>
+          </form>
+        </div>
+        <div class="settings-block">
+          <h4>Thêm Nhóm / Hạng mục mới</h4>
+          <form id="newCategoryForm" class="inline-form">
+            <input type="text" id="newCategoryNhom" list="nhomDatalist" placeholder="Nhóm, VD: Ốp lát" required maxlength="60" />
+            <datalist id="nhomDatalist"></datalist>
+            <input type="text" id="newCategoryName" placeholder="Tên hạng mục" required maxlength="60" />
+            <select id="newCategoryType">
+              <option value="Chi">Chi tiêu</option>
+              <option value="Thu">Thu nhập</option>
+            </select>
+            <input type="number" id="newCategoryBudget" placeholder="Ngân sách dự kiến (₫, không bắt buộc)" min="0" step="100000" />
+            <button type="submit" class="btn btn-secondary">Thêm</button>
+          </form>
+        </div>
+        <div class="settings-block">
+          <h4>Đồng bộ</h4>
+          <p id="pendingInfo" class="fine-print">Không có giao dịch chờ đồng bộ.</p>
+          <button id="forceSyncBtn" class="btn btn-secondary">Đồng bộ ngay</button>
+        </div>
+        <div class="settings-block">
+          <button id="openSheetBtn" class="link-btn" target="_blank" rel="noopener">Mở file Google Sheet ↗</button>
+        </div>
+        <div class="settings-block">
+          <p id="appVersionSettings" class="version-tag"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
