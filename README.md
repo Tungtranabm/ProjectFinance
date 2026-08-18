@@ -1,6 +1,6 @@
 # Project Finance — PWA theo dõi thu chi nhiều dự án, lưu trên Google Sheets
 
-**Phiên bản hiện tại: Ver 1.03** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
+**Phiên bản hiện tại: Ver 1.04** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
 
 Ứng dụng web (PWA) chạy hoàn toàn ở phía trình duyệt — không có server riêng.
 Khi bạn đăng nhập bằng Google, app sẽ tự tạo (hoặc tìm lại) **một file
@@ -188,6 +188,21 @@ Lưu file lại.
   chỉ lọc theo đúng dự án đó); bấm nút "←" ở góc trên để quay lại danh
   sách dự án. Nhóm/Hạng mục và Nhà thầu dùng chung cho mọi dự án, còn
   Ngân sách dự kiến đặt riêng theo từng dự án.
+- **Sửa tên dự án / nhà thầu:** bấm biểu tượng ✎ trên thẻ dự án (màn hình
+  "Dự án của bạn") hoặc trên thẻ nhà thầu (mục "Nhà thầu / Đội thi công"
+  trong 1 dự án) để đổi tên/ghi chú. **Xoá** dự án hoặc nhà thầu thì app
+  chưa có nút riêng — nếu thật sự cần xoá, làm trực tiếp trong Google
+  Sheet (xoá dòng tương ứng ở sheet `DuAn` hoặc `NhaThau`), nhưng nhớ xoá
+  luôn các dòng `GiaoDich`/`NganSach` liên quan tới ID đó, nếu không các
+  dòng này sẽ bị "mồ côi" (vẫn còn trong Sheet nhưng app không hiển thị).
+- **Sửa Nhóm/Hạng mục:** app cũng chưa có nút sửa/xoá cho mục này. Có thể
+  sửa trực tiếp cột `HangMuc`/`GhiChu` trong sheet `DanhMuc`, nhưng **lưu
+  ý:** cột `Nhom`/`HangMuc` trong `GiaoDich` và `NganSach` lưu theo TÊN
+  CHỮ chứ không theo ID, nên nếu đổi tên 1 Nhóm/Hạng mục đã có giao dịch
+  hoặc ngân sách, các dòng cũ sẽ KHÔNG tự cập nhật theo tên mới (số liệu
+  cũ vẫn đúng nhưng bị tách riêng khỏi tên mới) — nếu chỉ đổi lỗi chính tả
+  nhỏ thì có thể tự sửa thủ công cả những dòng cũ đó trong Sheet; nếu
+  không chắc, nên thêm Hạng mục mới thay vì đổi tên cái cũ.
 - **Ngân sách dự kiến vs thực chi:** Trong 1 dự án, vào ⚙ Cài đặt → mục
   "Đặt ngân sách cho dự án..." → chọn Nhóm + Hạng mục + số tiền → Lưu.
   Chỉ Hạng mục nào được đặt ngân sách ở đây mới hiện trong mục "Ngân sách

@@ -2,6 +2,19 @@
 
 Ghi lại các thay đổi qua từng phiên bản để tiện theo dõi.
 
+## Ver 1.04 — 2026-08-18
+- **Sửa tên dự án:** trên màn hình "Dự án của bạn", bấm biểu tượng ✎ trên
+  mỗi thẻ dự án để đổi tên/ghi chú (không mở dự án khi bấm nút này).
+- **Sửa nhà thầu / đội thi công:** trong dashboard 1 dự án, mục "Nhà thầu
+  / Đội thi công" nay có biểu tượng ✎ trên mỗi thẻ để đổi tên/ghi chú —
+  form trong ⚙ Cài đặt tự chuyển sang chế độ "Sửa", có nút "Huỷ sửa" để
+  quay lại chế độ thêm mới.
+- Cả hai thao tác sửa đều ghi thẳng vào đúng dòng trong Google Sheet (theo
+  ID), không tạo dòng trùng, áp dụng ngay cho mọi giao dịch/ngân sách đã
+  có liên quan (vì các bảng tham chiếu theo ID, không theo tên).
+- Xoá dự án / xoá nhà thầu / sửa-xoá Nhóm-Hạng mục CHƯA có trong bản này —
+  sẽ bổ sung sau nếu cần.
+
 ## Ver 1.03 — 2026-08-18
 - **Quản lý nhiều dự án trong 1 app** (thay vì chỉ 1 dự án tổng chung như
   trước):

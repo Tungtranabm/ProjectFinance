@@ -778,7 +778,10 @@ function renderProjectsOverview() {
         <div class="project-card" data-id="${p.id}">
           <div class="project-card-head">
             <span class="project-card-name">${escapeHtml(p.ten)}</span>
-            <span class="project-card-arrow">→</span>
+            <div class="project-card-actions">
+              <button type="button" class="card-edit-btn" data-edit-project="${p.id}" title="Sửa dự án">✎</button>
+              <span class="project-card-arrow">→</span>
+            </div>
           </div>
           ${p.ghiChu ? `<div class="project-card-note">${escapeHtml(p.ghiChu)}</div>` : ""}
           <div class="project-card-stats">
@@ -815,6 +818,49 @@ async function addProject(name, note) {
   return id;
 }
 
+async function updateProject(id, name, note) {
+  if (!navigator.onLine) {
+    showToast("Cần có mạng để sửa dự án.");
+    throw new Error("offline");
+  }
+  const p = state.projects.find((pr) => pr.id === id);
+  if (!p) {
+    showToast("Không tìm thấy dự án này.");
+    throw new Error("not found");
+  }
+  await apiFetch(
+    `${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A${p._row}:D${p._row}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ values: [[p.id, name, note || "", p.ngayTao]] }),
+    }
+  );
+  await loadAllData();
+  if (state.currentProjectId === id) {
+    $("headerTitle").textContent = name;
+  }
+  showToast("Đã cập nhật dự án: " + name);
+}
+
+function openAddProjectModal() {
+  $("editProjectId").value = "";
+  $("newProjectForm").reset();
+  $("projectModalTitle").textContent = "Thêm dự án mới";
+  $("projectModalSubmitBtn").textContent = "Tạo dự án";
+  openModal("projectModal");
+}
+
+function openEditProjectModal(id) {
+  const p = state.projects.find((pr) => pr.id === id);
+  if (!p) return;
+  $("editProjectId").value = p.id;
+  $("newProjectName").value = p.ten;
+  $("newProjectNote").value = p.ghiChu || "";
+  $("projectModalTitle").textContent = "Sửa dự án";
+  $("projectModalSubmitBtn").textContent = "Lưu thay đổi";
+  openModal("projectModal");
+}
+
 function openProject(id) {
   const p = state.projects.find((pr) => pr.id === id);
   if (!p) {
@@ -846,7 +892,12 @@ function renderNhaThauList() {
   state.nhaThauList.forEach((nt) => {
     const card = document.createElement("div");
     card.className = "wallet-card";
-    card.innerHTML = `<div class="w-name">${escapeHtml(nt.ten)}</div><div class="w-balance">Đã chi: ${formatMoney(nhaThauSpent(duAnId, nt.id))}</div>`;
+    card.innerHTML = `
+      <div class="wallet-card-head">
+        <div class="w-name">${escapeHtml(nt.ten)}</div>
+        <button type="button" class="card-edit-btn" data-edit-nhathau="${nt.id}" title="Sửa nhà thầu">✎</button>
+      </div>
+      <div class="w-balance">Đã chi: ${formatMoney(nhaThauSpent(duAnId, nt.id))}</div>`;
     list.appendChild(card);
   });
 
@@ -1229,6 +1280,48 @@ async function addNhaThau(name, note) {
   showToast("Đã thêm: " + name);
 }
 
+async function updateNhaThau(id, name, note) {
+  if (!navigator.onLine) {
+    showToast("Cần có mạng để sửa nhà thầu.");
+    return;
+  }
+  const nt = state.nhaThauList.find((n) => n.id === id);
+  if (!nt) {
+    showToast("Không tìm thấy nhà thầu này.");
+    return;
+  }
+  await apiFetch(
+    `${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A${nt._row}:C${nt._row}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ values: [[nt.id, name, note || ""]] }),
+    }
+  );
+  await loadAllData();
+  renderCurrentScreen();
+  showToast("Đã cập nhật: " + name);
+}
+
+function resetNhaThauFormToAddMode() {
+  $("newNhaThauForm").reset();
+  $("editNhaThauId").value = "";
+  $("nhaThauFormHeading").textContent = "Thêm nhà thầu / đội thi công mới";
+  $("nhaThauSubmitBtn").textContent = "Thêm";
+  $("nhaThauCancelEditBtn").classList.add("hidden");
+}
+
+function openEditNhaThauModal(id) {
+  const nt = state.nhaThauList.find((n) => n.id === id);
+  if (!nt) return;
+  openSettingsModal();
+  $("editNhaThauId").value = nt.id;
+  $("newNhaThauName").value = nt.ten;
+  $("newNhaThauNote").value = nt.ghiChu || "";
+  $("nhaThauFormHeading").textContent = "Sửa nhà thầu / đội thi công";
+  $("nhaThauSubmitBtn").textContent = "Lưu thay đổi";
+  $("nhaThauCancelEditBtn").classList.remove("hidden");
+}
+
 async function addCategory(nhom, name, type) {
   if (!navigator.onLine) {
     showToast("Cần có mạng để thêm Nhóm/Hạng mục mới.");
@@ -1268,6 +1361,7 @@ function openSettingsModal() {
   } else {
     block.classList.add("hidden");
   }
+  resetNhaThauFormToAddMode();
   openModal("settingsModal");
 }
 
@@ -1355,18 +1449,27 @@ function wireEvents() {
 
   $("logoutBtn").addEventListener("click", logout);
 
-  $("addProjectBtn").addEventListener("click", () => openModal("projectModal"));
+  $("addProjectBtn").addEventListener("click", openAddProjectModal);
 
   $("newProjectForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const editId = $("editProjectId").value;
     const name = $("newProjectName").value.trim();
     const note = $("newProjectNote").value.trim();
     if (!name) return;
     try {
-      const id = await addProject(name, note);
-      closeModal("projectModal");
-      $("newProjectForm").reset();
-      openProject(id);
+      if (editId) {
+        await updateProject(editId, name, note);
+        closeModal("projectModal");
+        $("newProjectForm").reset();
+        $("editProjectId").value = "";
+        renderCurrentScreen();
+      } else {
+        const id = await addProject(name, note);
+        closeModal("projectModal");
+        $("newProjectForm").reset();
+        openProject(id);
+      }
     } catch (err) {
       showToast("Lỗi: " + err.message);
     }
@@ -1375,6 +1478,11 @@ function wireEvents() {
   $("backToProjectsBtn").addEventListener("click", backToProjectsOverview);
 
   $("projectList").addEventListener("click", (e) => {
+    const editBtn = e.target.closest("[data-edit-project]");
+    if (editBtn) {
+      openEditProjectModal(editBtn.dataset.editProject);
+      return;
+    }
     const card = e.target.closest(".project-card");
     if (!card) return;
     openProject(card.dataset.id);
@@ -1444,15 +1552,28 @@ function wireEvents() {
 
   $("newNhaThauForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const editId = $("editNhaThauId").value;
     const name = $("newNhaThauName").value.trim();
     const note = $("newNhaThauNote").value.trim();
     if (!name) return;
     try {
-      await addNhaThau(name, note);
-      $("newNhaThauForm").reset();
+      if (editId) {
+        await updateNhaThau(editId, name, note);
+        resetNhaThauFormToAddMode();
+      } else {
+        await addNhaThau(name, note);
+        $("newNhaThauForm").reset();
+      }
     } catch (err) {
       showToast("Lỗi: " + err.message);
     }
+  });
+
+  $("nhaThauCancelEditBtn").addEventListener("click", resetNhaThauFormToAddMode);
+
+  $("nhaThauList").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-edit-nhathau]");
+    if (btn) openEditNhaThauModal(btn.dataset.editNhathau);
   });
 
   $("newCategoryForm").addEventListener("submit", async (e) => {

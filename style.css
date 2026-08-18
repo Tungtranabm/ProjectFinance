@@ -226,6 +226,19 @@ html, body {
 }
 .project-card-name { font-size: 16px; font-weight: 700; }
 .project-card-arrow { color: var(--text-dim); font-size: 14px; }
+.project-card-actions { display: flex; align-items: center; gap: 4px; }
+.card-edit-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.card-edit-btn:hover { background: var(--surface-2); color: var(--text); }
 .project-card-note { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
 .project-card-stats { display: flex; gap: 12px; flex-wrap: wrap; }
 .project-stat { font-size: 12px; color: var(--text-dim); }
@@ -247,7 +260,8 @@ html, body {
   padding: 14px;
   flex-shrink: 0;
 }
-.wallet-card .w-name { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+.wallet-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+.wallet-card .w-name { font-size: 13px; color: var(--text-dim); }
 .wallet-card .w-balance { font-size: 16px; font-weight: 700; }
 
 /* ---------- Filters ---------- */

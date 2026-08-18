@@ -127,10 +127,11 @@
   <div id="projectModal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
-        <h3>Thêm dự án mới</h3>
+        <h3 id="projectModalTitle">Thêm dự án mới</h3>
         <button class="icon-btn" data-close-modal>✕</button>
       </div>
       <form id="newProjectForm" class="modal-body">
+        <input type="hidden" id="editProjectId" />
         <label class="field">
           <span>Tên dự án</span>
           <input type="text" id="newProjectName" placeholder="VD: Nhà anh Tùng - Q7" required maxlength="80" />
@@ -140,7 +141,7 @@
           <input type="text" id="newProjectNote" maxlength="160" placeholder="VD: Khởi công 01/09/2026" />
         </label>
         <div class="modal-actions">
-          <button type="submit" class="btn btn-primary">Tạo dự án</button>
+          <button type="submit" id="projectModalSubmitBtn" class="btn btn-primary">Tạo dự án</button>
         </div>
       </form>
     </div>
@@ -217,12 +218,14 @@
           </form>
         </div>
         <div class="settings-block">
-          <h4>Thêm nhà thầu / đội thi công mới</h4>
-          <p class="fine-print">Danh sách nhà thầu dùng chung cho tất cả dự án.</p>
+          <h4 id="nhaThauFormHeading">Thêm nhà thầu / đội thi công mới</h4>
+          <p class="fine-print">Danh sách nhà thầu dùng chung cho tất cả dự án. Bấm ✎ trên thẻ nhà thầu ở màn hình dự án để sửa.</p>
           <form id="newNhaThauForm" class="inline-form">
+            <input type="hidden" id="editNhaThauId" />
             <input type="text" id="newNhaThauName" placeholder="Tên, VD: Đội điện nước" required maxlength="60" />
             <input type="text" id="newNhaThauNote" placeholder="Ghi chú (không bắt buộc)" maxlength="120" />
-            <button type="submit" class="btn btn-secondary">Thêm</button>
+            <button type="submit" id="nhaThauSubmitBtn" class="btn btn-secondary">Thêm</button>
+            <button type="button" id="nhaThauCancelEditBtn" class="link-btn hidden">Huỷ sửa</button>
           </form>
         </div>
         <div class="settings-block">
