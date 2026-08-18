@@ -1,18 +1,22 @@
-# Project Finance — PWA theo dõi thu chi, lưu trên Google Sheets
+# Project Finance — PWA theo dõi thu chi nhiều dự án, lưu trên Google Sheets
 
-**Phiên bản hiện tại: Ver 1.02** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
+**Phiên bản hiện tại: Ver 1.03** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
 
 Ứng dụng web (PWA) chạy hoàn toàn ở phía trình duyệt — không có server riêng.
 Khi bạn đăng nhập bằng Google, app sẽ tự tạo (hoặc tìm lại) **một file
 Google Sheet duy nhất** trong Drive của bạn, tên là `Project Finance Data`,
-và đọc/ghi giao dịch trực tiếp vào đó.
+và đọc/ghi dữ liệu trực tiếp vào đó.
 
-App được thiết kế để theo dõi thu chi một **dự án hoàn thiện nội thất**:
-mỗi giao dịch được gắn vào một **Nhóm** (VD: Xây dựng cơ bản, Hoàn thiện,
-Ốp lát, Nội thất...) và **Hạng mục** con bên trong nhóm đó (VD: Xây, Tô,
-Bả...) qua dropdown 2 tầng, kèm **Nhà thầu/Đội thi công** thực hiện. Mỗi
-Hạng mục có thể gắn sẵn **Ngân sách dự kiến** để app tự so sánh với số tiền
-đã chi thực tế theo từng Nhóm.
+App được thiết kế để theo dõi thu chi cho **nhiều dự án hoàn thiện nội
+thất cùng lúc** (mỗi dự án là một công trình/căn hộ riêng). Sau khi đăng
+nhập, bạn sẽ thấy màn hình **"Dự án của bạn"** — tạo bao nhiêu dự án tuỳ
+ý, bấm vào một dự án để xem dashboard riêng của nó. Trong mỗi dự án, mỗi
+giao dịch được gắn vào một **Nhóm** (VD: Xây dựng cơ bản, Hoàn thiện, Ốp
+lát, Nội thất...) và **Hạng mục** con bên trong nhóm đó (VD: Xây, Tô,
+Bả...) qua dropdown 2 tầng, kèm **Nhà thầu/Đội thi công** thực hiện.
+Nhóm/Hạng mục và Nhà thầu dùng chung cho mọi dự án, còn **Ngân sách dự
+kiến** thì đặt riêng cho từng dự án để app tự so sánh với số tiền đã chi
+thực tế theo từng Nhóm của đúng dự án đó.
 
 Vì không có server, bạn cần tự làm 2 việc **một lần duy nhất** trước khi
 dùng được:
@@ -40,30 +44,43 @@ Làm theo từng bước dưới đây, mất khoảng 10–15 phút cho lần �
 2. Tìm **Google Sheets API** → bấm vào → bấm **Enable**.
 3. Quay lại Library, tìm **Google Drive API** → bấm vào → bấm **Enable**.
 
-## Bước 3 — Cấu hình màn hình xin quyền (OAuth consent screen)
+## Bước 3 — Cấu hình Google Auth Platform (xin quyền truy cập)
 
-1. Vào **APIs & Services** → **OAuth consent screen**.
-2. Chọn **User Type: External** → **Create**.
-3. Điền:
+> Lưu ý: Google đã đổi giao diện bước này. Không còn gọi là "OAuth consent
+> screen" theo dạng wizard 1 trang nữa - giờ gọi là **Google Auth
+> Platform**, chia thành nhiều mục riêng ở thanh bên trái: **Overview,
+> Branding, Audience, Clients, Data Access, Verification Center,
+> Settings**. Nếu bạn thấy giao diện này (thay vì màn "OAuth consent
+> screen" như mô tả cũ) thì làm theo đúng các mục bên dưới, chỉ khác cách
+> gọi tên.
+
+1. Vào menu ☰ → **APIs & Services**, hoặc gõ "Google Auth Platform" ở ô
+   tìm kiếm trên cùng.
+2. Vào mục **Branding** (thanh bên trái): điền
    - App name: `Project Finance`
    - User support email: email của bạn
    - Developer contact information: email của bạn
-   Bấm **Save and Continue**.
-4. Ở màn **Scopes**, bấm **Add or Remove Scopes**, tìm và tick 2 quyền:
-   - `.../auth/spreadsheets`
-   - `.../auth/drive.file`
-   Bấm **Update** → **Save and Continue**.
-5. Ở màn **Test users**, bấm **Add Users**, nhập chính email Google của
-   bạn → **Save and Continue**.
+   Bấm **Save**.
+3. Vào mục **Audience**: nếu được hỏi User Type, chọn **External**. Ở
+   phần **Test users**, bấm **Add users**, nhập chính email Google của bạn
+   → **Save**.
    > Vì app ở chế độ "Testing", chỉ những email được thêm ở đây mới đăng
    > nhập được. Muốn dùng thêm tài khoản khác (vd vợ/chồng) thì thêm email
    > đó vào danh sách này.
-6. Bấm **Back to Dashboard** để hoàn tất.
+4. Vào mục **Data Access** (đây chính là nơi cấu hình "Scopes" - quyền
+   truy cập): bấm **Add or remove scopes**, tìm và tick 2 quyền:
+   - `.../auth/spreadsheets`
+   - `.../auth/drive.file`
+   Bấm **Update** → **Save**.
 
 ## Bước 4 — Tạo OAuth Client ID
 
-1. Vào **APIs & Services** → **Credentials**.
-2. Bấm **Create Credentials** → **OAuth client ID**.
+1. Vào mục **Clients** (thanh bên trái, cùng khu vực Google Auth Platform
+   với Branding/Audience/Data Access ở Bước 3). Nếu không thấy mục này,
+   vào **APIs & Services** → **Credentials** rồi bấm **Create Credentials**
+   → **OAuth client ID** - cả hai đường đều dẫn tới cùng một chỗ.
+2. Bấm **Create client** (hoặc **Create Credentials** → **OAuth client ID**
+   nếu bạn vào từ trang Credentials).
 3. Application type: **Web application**.
 4. Name: `Project Finance Web`.
 5. Ở mục **Authorized JavaScript origins**, bấm **Add URI** và thêm địa chỉ
@@ -143,36 +160,56 @@ Lưu file lại.
 3. App sẽ tự tạo file `Project Finance Data` trong Drive của bạn, kèm sẵn
    2 nhà thầu mẫu ("Đội thi công chính", "Chủ đầu tư / Nguồn vốn") và bộ
    Nhóm/Hạng mục mẫu cho dự án nội thất (giống bản Excel nháp đã gửi bạn
-   review trước đó). Từ giờ có thể thêm giao dịch, nhà thầu, Nhóm/Hạng mục
-   thoải mái trong mục ⚙ Cài đặt.
-4. Bạn có thể mở file này bất cứ lúc nào bằng nút **⚙ → Mở file Google
-   Sheet ↗** trong app, hoặc tìm trực tiếp trong Google Drive.
+   review trước đó) — dùng chung cho mọi dự án bạn sẽ tạo. Màn hình đầu
+   tiên sẽ trống, bấm **"+ Thêm dự án"** để tạo dự án đầu tiên (VD: tên
+   công trình/căn hộ), rồi vào ⚙ Cài đặt của dự án đó để đặt ngân sách dự
+   kiến cho từng Hạng mục. Có thể thêm giao dịch, nhà thầu, Nhóm/Hạng mục
+   mới thoải mái trong mục ⚙ Cài đặt bất cứ lúc nào.
+4. Bạn có thể mở file Google Sheet gốc bất cứ lúc nào bằng nút **⚙ → Mở
+   file Google Sheet ↗** trong app, hoặc tìm trực tiếp trong Google Drive.
 
 ---
 
 ## Cách hoạt động / giới hạn cần biết
 
-- **Lưu trữ:** 3 sheet trong 1 file —
+- **Lưu trữ:** 5 sheet trong 1 file —
+  - `DuAn` (danh sách dự án): ID, Tên, Ghi chú, Ngày tạo.
   - `GiaoDich` (giao dịch): ID, Ngày, Loại (Thu/Chi), Số tiền, Nhóm, Hạng
-    mục, Nhà thầu, Ghi chú.
-  - `NhaThau` (nhà thầu/đội thi công): ID, Tên, Ghi chú.
-  - `DanhMuc` (danh sách Nhóm/Hạng mục để chọn qua dropdown): ID, Nhóm,
-    Hạng mục, Loại, Ngân sách dự kiến, Ghi chú.
-- **Ngân sách dự kiến vs thực chi:** Mục "Ngân sách theo nhóm" trên
-  dashboard tự cộng Ngân sách dự kiến của các Hạng mục trong từng Nhóm
-  (cột `NganSachDuKien` trong sheet `DanhMuc`) và so với tổng đã chi thực
-  tế của Nhóm đó — thanh tiến độ chuyển vàng khi đạt 80% và đỏ khi vượt
-  100%. Sửa số Ngân sách dự kiến trực tiếp trong Google Sheet hoặc khi
-  thêm Hạng mục mới trong ⚙ Cài đặt.
+    mục, Nhà thầu, Ghi chú, **DuAnID** (dự án nào).
+  - `NhaThau` (nhà thầu/đội thi công — dùng chung mọi dự án): ID, Tên,
+    Ghi chú.
+  - `DanhMuc` (danh sách Nhóm/Hạng mục để chọn qua dropdown — dùng chung
+    mọi dự án): ID, Nhóm, Hạng mục, Loại, Ghi chú.
+  - `NganSach` (ngân sách dự kiến, riêng theo từng dự án): ID, **DuAnID**,
+    Nhóm, Hạng mục, Ngân sách dự kiến, Ghi chú.
+- **Nhiều dự án:** Màn hình "Dự án của bạn" là màn hình chính sau khi
+  đăng nhập, liệt kê tất cả dự án kèm Ngân sách/Đã chi/Còn lại tổng của
+  từng dự án. Mở 1 dự án để vào dashboard chi tiết (y hệt bản trước, nay
+  chỉ lọc theo đúng dự án đó); bấm nút "←" ở góc trên để quay lại danh
+  sách dự án. Nhóm/Hạng mục và Nhà thầu dùng chung cho mọi dự án, còn
+  Ngân sách dự kiến đặt riêng theo từng dự án.
+- **Ngân sách dự kiến vs thực chi:** Trong 1 dự án, vào ⚙ Cài đặt → mục
+  "Đặt ngân sách cho dự án..." → chọn Nhóm + Hạng mục + số tiền → Lưu.
+  Chỉ Hạng mục nào được đặt ngân sách ở đây mới hiện trong mục "Ngân sách
+  theo nhóm" của dự án đó — thanh tiến độ chuyển vàng khi đạt 80% và đỏ
+  khi vượt 100%. Nhập lại cùng Nhóm + Hạng mục để cập nhật số tiền mới
+  (không tạo dòng trùng).
 - **Nhà thầu / Đội thi công:** Mỗi giao dịch gắn với 1 nhà thầu để biết đã
   thanh toán cho ai bao nhiêu (mục "Nhà thầu / Đội thi công" trên
-  dashboard). Với các khoản Thu (VD: tạm ứng từ chủ đầu tư), bạn có thể
-  chọn nhà thầu mẫu "Chủ đầu tư / Nguồn vốn" hoặc tự thêm nguồn khác.
+  dashboard, tính riêng theo từng dự án). Với các khoản Thu (VD: tạm ứng
+  từ chủ đầu tư), bạn có thể chọn nhà thầu mẫu "Chủ đầu tư / Nguồn vốn"
+  hoặc tự thêm nguồn khác.
 - **Ngoại tuyến:** Thêm giao dịch mới vẫn hoạt động khi mất mạng — được
   lưu tạm trên máy và tự đồng bộ lên Sheet khi có mạng lại (xem huy hiệu
   chấm tròn ở góc trên: xanh = đã đồng bộ, vàng = đang chờ, xám = ngoại
   tuyến). **Sửa/xoá** giao dịch, thêm Nhà thầu/Nhóm/Hạng mục mới cần có
   mạng để tránh xung đột dữ liệu.
+- **Đang dùng bản cũ (1.02 trở về trước)?** Không cần làm gì thêm — lần
+  đăng nhập đầu tiên trên bản 1.03, app tự phát hiện file Sheet cũ (chưa
+  có sheet `DuAn`/`NganSach`) và tự nâng cấp: thêm 2 sheet mới, gom toàn
+  bộ giao dịch và ngân sách cũ vào một dự án tên **"Dự án 1"**. Dữ liệu cũ
+  không mất, bạn chỉ cần đổi tên dự án đó nếu muốn (hoặc tạo thêm dự án
+  mới cho các công trình khác).
 - **Nhiều thiết bị:** Vì dữ liệu nằm trên Google Sheet, bạn có thể đăng
   nhập cùng tài khoản trên nhiều điện thoại/máy tính, tất cả đều đọc/ghi
   chung 1 file.

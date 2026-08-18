@@ -32,6 +32,10 @@ html, body {
   flex-direction: column;
 }
 
+.screen-body {
+  min-height: 100vh;
+}
+
 /* ---------- Login screen ---------- */
 #loginScreen {
   align-items: center;
@@ -203,6 +207,31 @@ html, body {
 .budget-bar-fill.warn { background: #f5a524; }
 .budget-bar-fill.over { background: var(--expense); }
 .budget-item-pct { font-size: 11px; color: var(--text-dim); margin-top: 4px; text-align: right; }
+
+/* ---------- Projects overview ---------- */
+.project-list { display: flex; flex-direction: column; gap: 10px; }
+.project-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+.project-card:hover { background: var(--surface-2); }
+.project-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.project-card-name { font-size: 16px; font-weight: 700; }
+.project-card-arrow { color: var(--text-dim); font-size: 14px; }
+.project-card-note { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+.project-card-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.project-stat { font-size: 12px; color: var(--text-dim); }
+.project-stat strong { display: block; font-size: 14px; color: var(--text); margin-top: 2px; }
+.project-stat.expense strong { color: var(--expense); }
+.project-stat.remaining strong.over-budget { color: var(--expense); }
 
 /* ---------- Wallets ---------- */
 .wallet-list {

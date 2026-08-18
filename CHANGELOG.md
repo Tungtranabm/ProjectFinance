@@ -2,6 +2,33 @@
 
 Ghi lại các thay đổi qua từng phiên bản để tiện theo dõi.
 
+## Ver 1.03 — 2026-08-18
+- **Quản lý nhiều dự án trong 1 app** (thay vì chỉ 1 dự án tổng chung như
+  trước):
+  - Thêm màn hình **"Dự án của bạn"** làm màn hình chính sau khi đăng
+    nhập — liệt kê tất cả dự án dạng thẻ, mỗi thẻ hiện nhanh Ngân sách /
+    Đã chi / Còn lại của dự án đó. Bấm "+ Thêm dự án" để tạo dự án mới,
+    bấm vào thẻ để mở dashboard chi tiết của dự án đó.
+  - Trong dashboard 1 dự án, có nút "←" ở góc trên để quay lại màn hình
+    tổng quan tất cả dự án.
+  - **Nhóm/Hạng mục** và **Nhà thầu/Đội thi công** dùng CHUNG cho mọi dự
+    án (đỡ phải nhập lại danh mục cho từng dự án).
+  - **Ngân sách dự kiến** nay đặt RIÊNG cho từng dự án: vào ⚙ Cài đặt khi
+    đang ở trong 1 dự án, mục "Đặt ngân sách cho dự án..." cho chọn
+    Nhóm + Hạng mục + số tiền — chỉ Hạng mục nào được đặt ngân sách ở đây
+    mới hiện trong mục "Ngân sách theo nhóm" của dự án đó. Có thể nhập
+    lại cùng Nhóm + Hạng mục để cập nhật số tiền mới.
+  - Mọi giao dịch, tổng ngân sách/đã chi, bộ lọc tháng/nhà thầu... đều tự
+    lọc theo đúng dự án đang mở, không lẫn giữa các dự án.
+- Sheet đổi cấu trúc: thêm 2 sheet mới `DuAn` (ID, Tên, Ghi chú, Ngày tạo)
+  và `NganSach` (ID, DuAnID, Nhóm, Hạng mục, Ngân sách dự kiến, Ghi chú).
+  `GiaoDich` thêm cột `DuAnID`. `DanhMuc` bỏ cột `NganSachDuKien` (ngân
+  sách nay nằm ở sheet `NganSach`, gắn theo từng dự án).
+- **Tự động nâng cấp file Google Sheet cũ:** nếu bạn đã dùng app từ bản
+  1.02, lần đăng nhập đầu tiên trên bản 1.03 app sẽ tự thêm 2 sheet mới,
+  gom toàn bộ giao dịch/ngân sách cũ vào 1 dự án tên "Dự án 1" — không
+  cần xoá hay tạo lại file, dữ liệu cũ không mất.
+
 ## Ver 1.02 — 2026-08-17
 - Cải tổ toàn bộ mô hình dữ liệu để phù hợp theo dõi thu chi dự án hoàn
   thiện nội thất thay vì thu chi cá nhân đơn thuần:

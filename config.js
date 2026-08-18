@@ -14,9 +14,10 @@ const CONFIG = {
   // APP_VERSION (1.01 -> 1.02 -> 1.03 ...) để tiện theo dõi. Nhớ cập nhật
   // cùng lúc với CACHE_NAME trong service-worker.js và CHANGELOG.md.
   APP_NAME: "Project Finance",
-  APP_VERSION: "1.02",
+  APP_VERSION: "1.03",
 
   // Dán OAuth Client ID (dạng "xxxx.apps.googleusercontent.com") vào đây
+  // (đã điền sẵn Client ID bạn dùng ở bản 1.02 - không cần đổi lại)
   CLIENT_ID: "721535080990-8ihjtp88nalf5f55jv5d2g4lqpn2mp32.apps.googleusercontent.com",
 
   // Tên file Google Sheet sẽ được tạo tự động trong Drive của bạn

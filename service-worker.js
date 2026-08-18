@@ -6,7 +6,7 @@
 // trình duyệt biết app đã có bản mới và tải lại app shell thay vì dùng
 // bản cache cũ.
 
-const CACHE_NAME = "projectfinance-shell-v1.02";
+const CACHE_NAME = "projectfinance-shell-v1.03";
 const SHELL_FILES = [
   "./",
   "./index.html",

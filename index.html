@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Project Finance</title>
-<meta name="description" content="Project Finance - theo dõi thu chi dự án nội thất, đồng bộ với Google Sheets" />
+<meta name="description" content="Project Finance - theo dõi thu chi nhiều dự án nội thất, đồng bộ với Google Sheets" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icons/icon-192.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -18,7 +18,7 @@
     <div class="login-card">
       <div class="logo">₫</div>
       <h1 id="appTitle">Project Finance</h1>
-      <p class="subtitle">Theo dõi thu chi dự án theo Nhóm / Hạng mục, so sánh ngân sách dự kiến với thực chi, dữ liệu lưu trực tiếp trên Google Sheets của riêng bạn.</p>
+      <p class="subtitle">Quản lý thu chi nhiều dự án cùng lúc, theo Nhóm / Hạng mục, so sánh ngân sách dự kiến với thực chi cho từng dự án, dữ liệu lưu trực tiếp trên Google Sheets của riêng bạn.</p>
       <button id="loginBtn" class="btn btn-primary btn-block">Đăng nhập với Google</button>
       <p id="loginError" class="error-text hidden"></p>
       <p class="fine-print">Ứng dụng chỉ tạo &amp; truy cập MỘT file Google Sheet do chính nó tạo ra, không đụng tới các file khác trong Drive của bạn.</p>
@@ -26,20 +26,35 @@
     </div>
   </section>
 
-  <!-- ===================== MÀN HÌNH CHÍNH ===================== -->
-  <section id="appScreen" class="screen hidden">
-    <header class="topbar">
-      <div class="topbar-title">
-        <span class="logo-sm">₫</span>
-        <span id="appTitleTop">Project Finance</span>
-      </div>
-      <div class="topbar-actions">
-        <span id="syncStatus" class="sync-badge" title="Trạng thái đồng bộ">●</span>
-        <button id="settingsBtn" class="icon-btn" title="Cài đặt Nhà thầu / Danh mục">⚙</button>
-        <button id="logoutBtn" class="icon-btn" title="Đăng xuất">⏻</button>
-      </div>
-    </header>
+  <!-- ===================== HEADER DÙNG CHUNG (sau khi đăng nhập) ===================== -->
+  <header id="appHeader" class="topbar hidden">
+    <div class="topbar-title">
+      <button id="backToProjectsBtn" class="icon-btn hidden" title="Quay lại Tổng quan dự án">←</button>
+      <span class="logo-sm">₫</span>
+      <span id="headerTitle">Project Finance</span>
+    </div>
+    <div class="topbar-actions">
+      <span id="syncStatus" class="sync-badge" title="Trạng thái đồng bộ">●</span>
+      <button id="settingsBtn" class="icon-btn" title="Cài đặt Nhà thầu / Danh mục">⚙</button>
+      <button id="logoutBtn" class="icon-btn" title="Đăng xuất">⏻</button>
+    </div>
+  </header>
 
+  <!-- ===================== MÀN HÌNH TỔNG QUAN TẤT CẢ DỰ ÁN ===================== -->
+  <section id="projectsScreen" class="screen-body hidden">
+    <main class="content">
+      <div class="section-header">
+        <h2>Dự án của bạn</h2>
+        <button id="addProjectBtn" class="link-btn">+ Thêm dự án</button>
+      </div>
+      <div id="projectList" class="project-list">
+        <p class="empty-hint">Chưa có dự án nào. Bấm "+ Thêm dự án" để bắt đầu.</p>
+      </div>
+    </main>
+  </section>
+
+  <!-- ===================== MÀN HÌNH CHI TIẾT 1 DỰ ÁN ===================== -->
+  <section id="appScreen" class="screen-body hidden">
     <main class="content">
       <!-- Tổng quan ngân sách -->
       <section class="summary-card">
@@ -108,6 +123,29 @@
     <button id="addTransactionBtn" class="fab" title="Thêm giao dịch">+</button>
   </section>
 
+  <!-- ===================== MODAL: THÊM DỰ ÁN MỚI ===================== -->
+  <div id="projectModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Thêm dự án mới</h3>
+        <button class="icon-btn" data-close-modal>✕</button>
+      </div>
+      <form id="newProjectForm" class="modal-body">
+        <label class="field">
+          <span>Tên dự án</span>
+          <input type="text" id="newProjectName" placeholder="VD: Nhà anh Tùng - Q7" required maxlength="80" />
+        </label>
+        <label class="field">
+          <span>Ghi chú (không bắt buộc)</span>
+          <input type="text" id="newProjectNote" maxlength="160" placeholder="VD: Khởi công 01/09/2026" />
+        </label>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Tạo dự án</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ===================== MODAL: THÊM/SỬA GIAO DỊCH ===================== -->
   <div id="txModal" class="modal-overlay hidden">
     <div class="modal">
@@ -160,16 +198,27 @@
     </div>
   </div>
 
-  <!-- ===================== MODAL: CÀI ĐẶT NHÀ THẦU / DANH MỤC ===================== -->
+  <!-- ===================== MODAL: CÀI ĐẶT NHÀ THẦU / DANH MỤC / NGÂN SÁCH ===================== -->
   <div id="settingsModal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
-        <h3>Nhà thầu &amp; Danh mục</h3>
+        <h3>Cài đặt</h3>
         <button class="icon-btn" data-close-modal>✕</button>
       </div>
       <div class="modal-body">
+        <div id="budgetSettingsBlock" class="settings-block hidden">
+          <h4>Đặt ngân sách cho dự án: <span id="budgetSettingsProjectName"></span></h4>
+          <p class="fine-print">Chỉ Nhóm/Hạng mục được đặt ngân sách ở đây mới hiện trong mục "Ngân sách theo nhóm" của dự án này. Nhập lại cùng Nhóm + Hạng mục để cập nhật số tiền mới.</p>
+          <form id="newBudgetForm" class="inline-form">
+            <select id="budgetNhom" required></select>
+            <select id="budgetHangMuc" required></select>
+            <input type="number" id="budgetAmount" placeholder="Ngân sách dự kiến (₫)" min="0" step="100000" required />
+            <button type="submit" class="btn btn-secondary">Lưu ngân sách</button>
+          </form>
+        </div>
         <div class="settings-block">
           <h4>Thêm nhà thầu / đội thi công mới</h4>
+          <p class="fine-print">Danh sách nhà thầu dùng chung cho tất cả dự án.</p>
           <form id="newNhaThauForm" class="inline-form">
             <input type="text" id="newNhaThauName" placeholder="Tên, VD: Đội điện nước" required maxlength="60" />
             <input type="text" id="newNhaThauNote" placeholder="Ghi chú (không bắt buộc)" maxlength="120" />
@@ -178,6 +227,7 @@
         </div>
         <div class="settings-block">
           <h4>Thêm Nhóm / Hạng mục mới</h4>
+          <p class="fine-print">Danh mục dùng chung cho tất cả dự án. Đặt ngân sách riêng cho từng dự án ở mục phía trên (khi đang ở trong 1 dự án).</p>
           <form id="newCategoryForm" class="inline-form">
             <input type="text" id="newCategoryNhom" list="nhomDatalist" placeholder="Nhóm, VD: Ốp lát" required maxlength="60" />
             <datalist id="nhomDatalist"></datalist>
@@ -186,7 +236,6 @@
               <option value="Chi">Chi tiêu</option>
               <option value="Thu">Thu nhập</option>
             </select>
-            <input type="number" id="newCategoryBudget" placeholder="Ngân sách dự kiến (₫, không bắt buộc)" min="0" step="100000" />
             <button type="submit" class="btn btn-secondary">Thêm</button>
           </form>
         </div>

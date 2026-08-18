@@ -4,10 +4,15 @@
 //  cache local + hàng đợi đồng bộ khi mất mạng.
 //  (Tên hiển thị + số phiên bản lấy từ CONFIG trong config.js)
 //
-//  Mô hình dữ liệu (Ver 1.02):
-//   - GiaoDich: ID, Ngay, Loai, SoTien, Nhom, HangMuc, NhaThauID, GhiChu
-//   - NhaThau : ID, Ten, GhiChu            (nhà thầu / đội thi công)
-//   - DanhMuc : ID, Nhom, HangMuc, Loai, NganSachDuKien, GhiChu
+//  Mô hình dữ liệu (Ver 1.03 - nhiều dự án):
+//   - GiaoDich: ID, Ngay, Loai, SoTien, Nhom, HangMuc, NhaThauID, GhiChu, DuAnID
+//   - NhaThau : ID, Ten, GhiChu                        (dùng chung mọi dự án)
+//   - DanhMuc : ID, Nhom, HangMuc, Loai, GhiChu         (dùng chung mọi dự án)
+//   - NganSach: ID, DuAnID, Nhom, HangMuc, NganSachDuKien, GhiChu  (riêng từng dự án)
+//   - DuAn    : ID, Ten, GhiChu, NgayTao
+//
+//  Sheet cũ (Ver 1.02, chỉ có GiaoDich/NhaThau/DanhMuc) sẽ được TỰ ĐỘNG
+//  nâng cấp khi phát hiện thiếu sheet DuAn/NganSach - xem migrateLegacyIfNeeded().
 // =============================================================
 
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -24,68 +29,70 @@ const LS_KEYS = {
 // ---------------------------------------------------------------
 // Danh mục mặc định (Nhóm > Hạng mục), dùng để tạo dữ liệu lần đầu.
 // Khớp với bản nháp Excel đã gửi cho người dùng review trước.
+// Ngân sách KHÔNG còn nằm ở đây từ Ver 1.03 - ngân sách nay đặt riêng
+// cho từng dự án (xem NganSach), nên danh mục mặc định chỉ còn tên.
 // ---------------------------------------------------------------
 const DEFAULT_CATEGORIES = [
   { nhom: "Xây dựng cơ bản (XDCB)", items: [
-    ["Phá dỡ, dọn mặt bằng", "Chi", 8000000],
-    ["Đào móng / ép cọc (nếu có)", "Chi", 0],
-    ["Xây thô (xây tường, cột)", "Chi", 0],
-    ["Cán nền, đổ sàn", "Chi", 0],
-    ["Tô trát tường", "Chi", 0],
-    ["Bả matit", "Chi", 0],
-    ["Chống thấm (sàn, tường, sân thượng)", "Chi", 0],
-    ["Đi đường điện âm tường", "Chi", 0],
-    ["Đi đường nước âm tường (cấp thoát nước)", "Chi", 0],
-    ["Lắp đặt khung bao cửa", "Chi", 0],
+    ["Phá dỡ, dọn mặt bằng", "Chi"],
+    ["Đào móng / ép cọc (nếu có)", "Chi"],
+    ["Xây thô (xây tường, cột)", "Chi"],
+    ["Cán nền, đổ sàn", "Chi"],
+    ["Tô trát tường", "Chi"],
+    ["Bả matit", "Chi"],
+    ["Chống thấm (sàn, tường, sân thượng)", "Chi"],
+    ["Đi đường điện âm tường", "Chi"],
+    ["Đi đường nước âm tường (cấp thoát nước)", "Chi"],
+    ["Lắp đặt khung bao cửa", "Chi"],
   ]},
   { nhom: "Hoàn thiện", items: [
-    ["Sơn lót", "Chi", 0],
-    ["Sơn phủ hoàn thiện", "Chi", 0],
-    ["Trần thạch cao", "Chi", 0],
-    ["Cửa đi (gỗ/nhôm/kính)", "Chi", 0],
-    ["Cửa sổ", "Chi", 0],
-    ["Lan can, tay vịn cầu thang", "Chi", 0],
-    ["Lắp đặt thiết bị điện (công tắc, ổ cắm, đèn)", "Chi", 0],
-    ["Lắp đặt thiết bị vệ sinh (bồn cầu, lavabo, vòi sen)", "Chi", 0],
-    ["Lắp đặt máy nước nóng", "Chi", 0],
+    ["Sơn lót", "Chi"],
+    ["Sơn phủ hoàn thiện", "Chi"],
+    ["Trần thạch cao", "Chi"],
+    ["Cửa đi (gỗ/nhôm/kính)", "Chi"],
+    ["Cửa sổ", "Chi"],
+    ["Lan can, tay vịn cầu thang", "Chi"],
+    ["Lắp đặt thiết bị điện (công tắc, ổ cắm, đèn)", "Chi"],
+    ["Lắp đặt thiết bị vệ sinh (bồn cầu, lavabo, vòi sen)", "Chi"],
+    ["Lắp đặt máy nước nóng", "Chi"],
   ]},
   { nhom: "Ốp lát", items: [
-    ["Gạch nền phòng khách / phòng ngủ", "Chi", 0],
-    ["Gạch ốp tường", "Chi", 0],
-    ["Gạch/đá ốp khu vệ sinh", "Chi", 0],
-    ["Đá ốp bậc cầu thang", "Chi", 0],
-    ["Ốp lát khu bếp (backsplash)", "Chi", 0],
-    ["Gạch/đá ngoại thất, sân vườn", "Chi", 0],
+    ["Gạch nền phòng khách / phòng ngủ", "Chi"],
+    ["Gạch ốp tường", "Chi"],
+    ["Gạch/đá ốp khu vệ sinh", "Chi"],
+    ["Đá ốp bậc cầu thang", "Chi"],
+    ["Ốp lát khu bếp (backsplash)", "Chi"],
+    ["Gạch/đá ngoại thất, sân vườn", "Chi"],
   ]},
   { nhom: "Nội thất", items: [
-    ["Nội thất phòng khách (sofa, bàn trà, kệ tivi)", "Chi", 0],
-    ["Nội thất phòng bếp (tủ bếp, bàn ăn)", "Chi", 0],
-    ["Nội thất phòng ngủ (giường, tủ quần áo, bàn trang điểm)", "Chi", 0],
-    ["Nội thất phòng vệ sinh (tủ lavabo, gương, kệ)", "Chi", 0],
-    ["Rèm cửa, thảm trải sàn", "Chi", 0],
-    ["Đèn trang trí", "Chi", 0],
-    ["Thiết bị điện gia dụng (máy lạnh, máy giặt, tủ lạnh, bếp từ...)", "Chi", 0],
+    ["Nội thất phòng khách (sofa, bàn trà, kệ tivi)", "Chi"],
+    ["Nội thất phòng bếp (tủ bếp, bàn ăn)", "Chi"],
+    ["Nội thất phòng ngủ (giường, tủ quần áo, bàn trang điểm)", "Chi"],
+    ["Nội thất phòng vệ sinh (tủ lavabo, gương, kệ)", "Chi"],
+    ["Rèm cửa, thảm trải sàn", "Chi"],
+    ["Đèn trang trí", "Chi"],
+    ["Thiết bị điện gia dụng (máy lạnh, máy giặt, tủ lạnh, bếp từ...)", "Chi"],
   ]},
   { nhom: "Cơ điện (M&E)", items: [
-    ["Hệ thống điện tổng (tủ điện, aptomat, CB)", "Chi", 0],
-    ["Hệ thống mạng, camera an ninh", "Chi", 0],
-    ["Hệ thống điều hoà trung tâm (nếu có)", "Chi", 0],
-    ["Máy bơm nước, bồn nước", "Chi", 0],
+    ["Hệ thống điện tổng (tủ điện, aptomat, CB)", "Chi"],
+    ["Hệ thống mạng, camera an ninh", "Chi"],
+    ["Hệ thống điều hoà trung tâm (nếu có)", "Chi"],
+    ["Máy bơm nước, bồn nước", "Chi"],
   ]},
   { nhom: "Chi phí quản lý & khác", items: [
-    ["Thiết kế phí", "Chi", 0],
-    ["Giám sát thi công", "Chi", 0],
-    ["Xin phép sửa chữa / xây dựng", "Chi", 0],
-    ["Vận chuyển, bốc xếp vật liệu", "Chi", 0],
-    ["Dọn dẹp vệ sinh công nghiệp", "Chi", 0],
-    ["Phát sinh / dự phòng", "Chi", 0],
+    ["Thiết kế phí", "Chi"],
+    ["Giám sát thi công", "Chi"],
+    ["Xin phép sửa chữa / xây dựng", "Chi"],
+    ["Vận chuyển, bốc xếp vật liệu", "Chi"],
+    ["Dọn dẹp vệ sinh công nghiệp", "Chi"],
+    ["Phát sinh / dự phòng", "Chi"],
   ]},
   { nhom: "Nguồn vốn (Thu)", items: [
-    ["Tạm ứng đợt 1 từ chủ đầu tư", "Thu", 0],
-    ["Tạm ứng đợt 2", "Thu", 0],
-    ["Tạm ứng đợt 3", "Thu", 0],
-    ["Vay / ứng thêm", "Thu", 0],
-    ["Hoàn ứng / hoàn tiền thừa", "Thu", 0],
+    ["Tạm ứng đợt 1 từ chủ đầu tư", "Thu"],
+    ["Tạm ứng đợt 2", "Thu"],
+    ["Tạm ứng đợt 3", "Thu"],
+    ["Vay / ứng thêm", "Thu"],
+    ["Hoàn ứng / hoàn tiền thừa", "Thu"],
   ]},
 ];
 
@@ -101,10 +108,13 @@ const state = {
   accessToken: null,
   tokenExpiresAt: 0,
   spreadsheetId: null,
-  sheetIds: {}, // { GiaoDich, NhaThau, DanhMuc } -> numeric sheetId
+  sheetIds: {}, // { GiaoDich, NhaThau, DanhMuc, NganSach, DuAn } -> numeric sheetId
   nhaThauList: [],
   categories: [],
   transactions: [],
+  projects: [],
+  budgets: [],
+  currentProjectId: null,
   pendingQueue: [],
   editingType: "Chi",
 };
@@ -160,6 +170,8 @@ function saveLocalCache() {
       nhaThauList: state.nhaThauList,
       categories: state.categories,
       transactions: state.transactions,
+      projects: state.projects,
+      budgets: state.budgets,
     })
   );
 }
@@ -172,6 +184,8 @@ function loadLocalCache() {
     state.nhaThauList = data.nhaThauList || [];
     state.categories = data.categories || [];
     state.transactions = data.transactions || [];
+    state.projects = data.projects || [];
+    state.budgets = data.budgets || [];
     return true;
   } catch (e) {
     return false;
@@ -232,7 +246,7 @@ async function onTokenResponse(resp) {
   state.tokenExpiresAt = Date.now() + (Number(resp.expires_in) || 3500) * 1000;
   localStorage.setItem(LS_KEYS.HAS_LOGGED_IN, "1");
 
-  showScreen("app");
+  showScreen("projects");
   await bootstrapAfterLogin();
 }
 
@@ -298,6 +312,7 @@ function logout() {
   }
   state.accessToken = null;
   state.tokenExpiresAt = 0;
+  state.currentProjectId = null;
   localStorage.removeItem(LS_KEYS.HAS_LOGGED_IN);
   showScreen("login");
 }
@@ -335,6 +350,7 @@ async function ensureSpreadsheet() {
       );
       state.spreadsheetId = cachedId;
       applySheetIdsFromMeta(meta);
+      await migrateLegacyIfNeeded();
       return;
     } catch (e) {
       // file có thể đã bị xoá / mất quyền -> tìm lại hoặc tạo mới
@@ -353,10 +369,11 @@ async function ensureSpreadsheet() {
     state.spreadsheetId = id;
     applySheetIdsFromMeta(meta);
     localStorage.setItem(LS_KEYS.SPREADSHEET_ID, id);
+    await migrateLegacyIfNeeded();
     return;
   }
 
-  // Không tìm thấy -> tạo mới kèm 3 sheet
+  // Không tìm thấy -> tạo mới kèm đủ 5 sheet của mô hình Ver 1.03
   const created = await apiFetch(SHEETS_API, {
     method: "POST",
     body: JSON.stringify({
@@ -365,6 +382,8 @@ async function ensureSpreadsheet() {
         { properties: { title: "GiaoDich" } },
         { properties: { title: "NhaThau" } },
         { properties: { title: "DanhMuc" } },
+        { properties: { title: "NganSach" } },
+        { properties: { title: "DuAn" } },
       ],
     }),
   });
@@ -384,50 +403,177 @@ function applySheetIdsFromMeta(meta) {
 }
 
 async function seedInitialData() {
-  // Headers
+  // Headers cho cả 5 sheet
   await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({
       valueInputOption: "USER_ENTERED",
       data: [
-        { range: "GiaoDich!A1:H1", values: [["ID", "Ngay", "Loai", "SoTien", "Nhom", "HangMuc", "NhaThauID", "GhiChu"]] },
+        { range: "GiaoDich!A1:I1", values: [["ID", "Ngay", "Loai", "SoTien", "Nhom", "HangMuc", "NhaThauID", "GhiChu", "DuAnID"]] },
         { range: "NhaThau!A1:C1", values: [["ID", "Ten", "GhiChu"]] },
-        { range: "DanhMuc!A1:F1", values: [["ID", "Nhom", "HangMuc", "Loai", "NganSachDuKien", "GhiChu"]] },
+        { range: "DanhMuc!A1:E1", values: [["ID", "Nhom", "HangMuc", "Loai", "GhiChu"]] },
+        { range: "NganSach!A1:F1", values: [["ID", "DuAnID", "Nhom", "HangMuc", "NganSachDuKien", "GhiChu"]] },
+        { range: "DuAn!A1:D1", values: [["ID", "Ten", "GhiChu", "NgayTao"]] },
       ],
     }),
   });
 
-  // Nhà thầu / đội thi công mặc định
+  // Nhà thầu / đội thi công mặc định (dùng chung mọi dự án)
   const nhaThauRows = DEFAULT_NHATHAU.map(([ten, ghiChu]) => [genId(), ten, ghiChu]);
   await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A2:C2:append?valueInputOption=USER_ENTERED`, {
     method: "POST",
     body: JSON.stringify({ values: nhaThauRows }),
   });
 
-  // Danh mục Nhóm/Hạng mục mặc định (khớp bản nháp Excel đã gửi)
+  // Danh mục Nhóm/Hạng mục mặc định (dùng chung mọi dự án, không kèm ngân sách)
   const catRows = [];
   DEFAULT_CATEGORIES.forEach(({ nhom, items }) => {
-    items.forEach(([ten, loai, budget]) => {
-      catRows.push([genId(), nhom, ten, loai, budget, ""]);
+    items.forEach(([ten, loai]) => {
+      catRows.push([genId(), nhom, ten, loai, ""]);
     });
   });
-  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A2:F2:append?valueInputOption=USER_ENTERED`, {
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A2:E2:append?valueInputOption=USER_ENTERED`, {
     method: "POST",
     body: JSON.stringify({ values: catRows }),
   });
+
+  // Không tạo sẵn dự án nào - người dùng bấm "+ Thêm dự án" để bắt đầu.
+}
+
+// ---------------------------------------------------------------
+// Nâng cấp sheet cũ (Ver 1.02, 3 sheet) lên mô hình nhiều dự án (5 sheet).
+// An toàn để gọi nhiều lần: nếu đã đủ sheet DuAn + NganSach thì bỏ qua.
+// ---------------------------------------------------------------
+async function migrateLegacyIfNeeded() {
+  const needsDuAn = !("DuAn" in state.sheetIds);
+  const needsNganSach = !("NganSach" in state.sheetIds);
+  if (!needsDuAn && !needsNganSach) return; // đã là mô hình Ver 1.03
+
+  showToast("Đang nâng cấp dữ liệu lên bản nhiều dự án, vui lòng đợi giây lát...", 4000);
+
+  // 1) Tạo sheet còn thiếu
+  const addRequests = [];
+  if (needsDuAn) addRequests.push({ addSheet: { properties: { title: "DuAn" } } });
+  if (needsNganSach) addRequests.push({ addSheet: { properties: { title: "NganSach" } } });
+  if (addRequests.length) {
+    const res = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}:batchUpdate`, {
+      method: "POST",
+      body: JSON.stringify({ requests: addRequests }),
+    });
+    (res.replies || []).forEach((r) => {
+      if (r.addSheet) {
+        state.sheetIds[r.addSheet.properties.title] = r.addSheet.properties.sheetId;
+      }
+    });
+    localStorage.setItem(LS_KEYS.SHEET_IDS, JSON.stringify(state.sheetIds));
+  }
+
+  // 2) Ghi header (ghi lại vô hại nếu đã có sẵn)
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values:batchUpdate`, {
+    method: "POST",
+    body: JSON.stringify({
+      valueInputOption: "USER_ENTERED",
+      data: [
+        { range: "DuAn!A1:D1", values: [["ID", "Ten", "GhiChu", "NgayTao"]] },
+        { range: "NganSach!A1:F1", values: [["ID", "DuAnID", "Nhom", "HangMuc", "NganSachDuKien", "GhiChu"]] },
+      ],
+    }),
+  });
+
+  // 3) Kiểm tra DanhMuc có đang ở schema cũ (cột E = NganSachDuKien) không
+  const oldDanhMuc = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A1:F10000`);
+  const dmRows = oldDanhMuc.values || [];
+  const dmHeader = dmRows[0] || [];
+  const isOldDanhMucSchema = dmHeader[4] === "NganSachDuKien";
+
+  // 4) Đảm bảo có ít nhất 1 dự án để gán dữ liệu cũ vào
+  const existingProjects = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A2:D10000`);
+  let defaultProjectId = ((existingProjects.values || [])[0] || [])[0];
+  if (!defaultProjectId) {
+    defaultProjectId = genId();
+    await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A2:D2:append?valueInputOption=USER_ENTERED`, {
+      method: "POST",
+      body: JSON.stringify({
+        values: [[defaultProjectId, "Dự án 1", "Dự án được tự động tạo khi nâng cấp app lên bản quản lý nhiều dự án - chứa toàn bộ dữ liệu cũ của bạn.", todayStr()]],
+      }),
+    });
+  }
+
+  // 5) Chuyển ngân sách cũ (trong DanhMuc) sang NganSach, viết lại DanhMuc còn 5 cột
+  if (isOldDanhMucSchema && dmRows.length > 1) {
+    const dataRows = dmRows.slice(1);
+    const budgetRows = [];
+    const newDanhMucRows = [];
+    dataRows.forEach((row) => {
+      const [id, nhom, hangMuc, loai, budget, ghiChu] = row;
+      if (!id) return;
+      newDanhMucRows.push([id, nhom || "", hangMuc || "", loai || "Chi", ghiChu || ""]);
+      const b = Number(budget) || 0;
+      if (b > 0) {
+        budgetRows.push([genId(), defaultProjectId, nhom || "", hangMuc || "", b, ""]);
+      }
+    });
+    await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A1:F10000:clear`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A1:E1?valueInputOption=USER_ENTERED`, {
+      method: "PUT",
+      body: JSON.stringify({ values: [["ID", "Nhom", "HangMuc", "Loai", "GhiChu"]] }),
+    });
+    if (newDanhMucRows.length) {
+      await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A2:E2:append?valueInputOption=USER_ENTERED`, {
+        method: "POST",
+        body: JSON.stringify({ values: newDanhMucRows }),
+      });
+    }
+    if (budgetRows.length) {
+      await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NganSach!A2:F2:append?valueInputOption=USER_ENTERED`, {
+        method: "POST",
+        body: JSON.stringify({ values: budgetRows }),
+      });
+    }
+  }
+
+  // 6) Thêm cột DuAnID cho GiaoDich nếu chưa có, gán toàn bộ giao dịch cũ vào defaultProjectId
+  const gdHeader = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!A1:I1`);
+  const headerRow = (gdHeader.values || [])[0] || [];
+  if (headerRow[8] !== "DuAnID") {
+    await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!A1:I1?valueInputOption=USER_ENTERED`, {
+      method: "PUT",
+      body: JSON.stringify({ values: [["ID", "Ngay", "Loai", "SoTien", "Nhom", "HangMuc", "NhaThauID", "GhiChu", "DuAnID"]] }),
+    });
+    const gdData = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!A2:A100000`);
+    const n = (gdData.values || []).length;
+    if (n > 0) {
+      const fill = Array.from({ length: n }, () => [defaultProjectId]);
+      await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!I2:I${n + 1}?valueInputOption=USER_ENTERED`, {
+        method: "PUT",
+        body: JSON.stringify({ values: fill }),
+      });
+    }
+  }
+
+  showToast("Đã nâng cấp xong. Dữ liệu cũ được gộp vào dự án \"Dự án 1\".", 5000);
 }
 
 // ---------------------------------------------------------------
 // Load all data from the sheet
 // ---------------------------------------------------------------
 async function loadAllData() {
-  const ranges = ["GiaoDich!A2:H100000", "NhaThau!A2:C10000", "DanhMuc!A2:F10000"]
+  const ranges = [
+    "GiaoDich!A2:I100000",
+    "NhaThau!A2:C10000",
+    "DanhMuc!A2:E10000",
+    "NganSach!A2:F10000",
+    "DuAn!A2:D10000",
+  ]
     .map((r) => "ranges=" + encodeURIComponent(r))
     .join("&");
   const data = await apiFetch(
     `${SHEETS_API}/${state.spreadsheetId}/values:batchGet?${ranges}`
   );
-  const [txRange, nhaThauRange, catRange] = data.valueRanges;
+  const [txRange, nhaThauRange, catRange, budgetRange, projectRange] = data.valueRanges;
 
   state.transactions = (txRange.values || []).map((row, i) => ({
     id: row[0],
@@ -438,6 +584,7 @@ async function loadAllData() {
     hangMuc: row[5] || "",
     nhaThauId: row[6] || "",
     ghiChu: row[7] || "",
+    duAnId: row[8] || "",
     _row: i + 2,
   }));
 
@@ -453,8 +600,25 @@ async function loadAllData() {
     nhom: row[1] || "",
     hangMuc: row[2] || "",
     loai: row[3] || "Chi",
+    ghiChu: row[4] || "",
+    _row: i + 2,
+  }));
+
+  state.budgets = (budgetRange.values || []).map((row, i) => ({
+    id: row[0],
+    duAnId: row[1] || "",
+    nhom: row[2] || "",
+    hangMuc: row[3] || "",
     nganSachDuKien: Number(row[4]) || 0,
     ghiChu: row[5] || "",
+    _row: i + 2,
+  }));
+
+  state.projects = (projectRange.values || []).map((row, i) => ({
+    id: row[0],
+    ten: row[1] || "",
+    ghiChu: row[2] || "",
+    ngayTao: row[3] || "",
     _row: i + 2,
   }));
 
@@ -462,16 +626,8 @@ async function loadAllData() {
 }
 
 // ---------------------------------------------------------------
-// Ngân sách / chi tiêu helpers
+// Danh mục dùng chung (không phụ thuộc dự án)
 // ---------------------------------------------------------------
-function allTransactionsSorted() {
-  const merged = [
-    ...state.transactions,
-    ...state.pendingQueue.map((q) => ({ ...q, _pending: true })),
-  ];
-  return merged.sort((a, b) => (b.ngay || "").localeCompare(a.ngay || ""));
-}
-
 function uniqueGroupsForType(type) {
   const seen = new Set();
   const result = [];
@@ -495,45 +651,202 @@ function uniqueAllGroups() {
   return result;
 }
 
-function groupBudget(nhom) {
-  return state.categories
-    .filter((c) => c.nhom === nhom && c.loai === "Chi")
-    .reduce((sum, c) => sum + (c.nganSachDuKien || 0), 0);
+// ---------------------------------------------------------------
+// Giao dịch / ngân sách - luôn theo phạm vi 1 dự án (duAnId)
+// ---------------------------------------------------------------
+function allTransactionsSorted() {
+  const merged = [
+    ...state.transactions,
+    ...state.pendingQueue.map((q) => ({ ...q, _pending: true })),
+  ];
+  return merged.sort((a, b) => (b.ngay || "").localeCompare(a.ngay || ""));
 }
 
-function groupSpent(nhom) {
-  const all = allTransactionsSorted();
-  return all
+function projectTransactions(duAnId) {
+  return allTransactionsSorted().filter((t) => t.duAnId === duAnId);
+}
+
+function budgetedGroupsForProject(duAnId) {
+  const seen = new Set();
+  const result = [];
+  state.budgets.forEach((b) => {
+    if (b.duAnId !== duAnId) return;
+    if (seen.has(b.nhom)) return;
+    seen.add(b.nhom);
+    result.push(b.nhom);
+  });
+  return result;
+}
+
+function groupBudget(duAnId, nhom) {
+  return state.budgets
+    .filter((b) => b.duAnId === duAnId && b.nhom === nhom)
+    .reduce((sum, b) => sum + (b.nganSachDuKien || 0), 0);
+}
+
+function groupSpent(duAnId, nhom) {
+  return projectTransactions(duAnId)
     .filter((t) => t.loai === "Chi" && t.nhom === nhom)
     .reduce((sum, t) => sum + (t.soTien || 0), 0);
 }
 
-function totalBudget() {
-  return uniqueGroupsForType("Chi").reduce((sum, nhom) => sum + groupBudget(nhom), 0);
+function totalBudget(duAnId) {
+  return budgetedGroupsForProject(duAnId).reduce((sum, nhom) => sum + groupBudget(duAnId, nhom), 0);
 }
 
-function totalSpent() {
-  const all = allTransactionsSorted();
-  return all.filter((t) => t.loai === "Chi").reduce((sum, t) => sum + (t.soTien || 0), 0);
+function totalSpent(duAnId) {
+  return projectTransactions(duAnId)
+    .filter((t) => t.loai === "Chi")
+    .reduce((sum, t) => sum + (t.soTien || 0), 0);
 }
 
-function nhaThauSpent(nhaThauId) {
-  const all = allTransactionsSorted();
-  return all
+function nhaThauSpent(duAnId, nhaThauId) {
+  return projectTransactions(duAnId)
     .filter((t) => t.loai === "Chi" && t.nhaThauId === nhaThauId)
     .reduce((sum, t) => sum + (t.soTien || 0), 0);
 }
 
+function projectMonthIncomeExpense(duAnId) {
+  const curMonth = monthKey(todayStr());
+  let income = 0, expense = 0;
+  projectTransactions(duAnId).forEach((t) => {
+    if (monthKey(t.ngay) !== curMonth) return;
+    if (t.loai === "Thu") income += t.soTien;
+    else expense += t.soTien;
+  });
+  return { income, expense };
+}
+
 // ---------------------------------------------------------------
-// Rendering
+// Rendering - chung
+// ---------------------------------------------------------------
+function renderCurrentScreen() {
+  if (state.currentProjectId) {
+    renderProjectDetail();
+  } else {
+    renderProjectsOverview();
+  }
+}
+
+function renderPendingInfo() {
+  const n = state.pendingQueue.length;
+  $("pendingInfo").textContent =
+    n === 0
+      ? "Không có giao dịch nào đang chờ đồng bộ."
+      : `Có ${n} giao dịch đang chờ đồng bộ lên Google Sheets.`;
+  updateSyncBadge();
+}
+
+function updateSyncBadge() {
+  const badge = $("syncStatus");
+  if (!navigator.onLine) {
+    badge.classList.remove("pending");
+    badge.classList.add("offline");
+    badge.title = "Đang ngoại tuyến - dữ liệu mới sẽ tự đồng bộ khi có mạng";
+  } else if (state.pendingQueue.length > 0) {
+    badge.classList.remove("offline");
+    badge.classList.add("pending");
+    badge.title = `${state.pendingQueue.length} giao dịch đang chờ đồng bộ`;
+  } else {
+    badge.classList.remove("offline", "pending");
+    badge.title = "Đã đồng bộ";
+  }
+}
+
+function renderNhomDatalist() {
+  const list = $("nhomDatalist");
+  list.innerHTML = uniqueAllGroups().map((g) => `<option value="${escapeHtml(g)}"></option>`).join("");
+}
+
+// ---------------------------------------------------------------
+// Rendering - Màn hình tổng quan tất cả dự án
+// ---------------------------------------------------------------
+function renderProjectsOverview() {
+  const list = $("projectList");
+  if (state.projects.length === 0) {
+    list.innerHTML = `<p class="empty-hint">Chưa có dự án nào. Bấm "+ Thêm dự án" để bắt đầu.</p>`;
+    renderPendingInfo();
+    return;
+  }
+  list.innerHTML = state.projects
+    .map((p) => {
+      const budget = totalBudget(p.id);
+      const spent = totalSpent(p.id);
+      const remaining = budget - spent;
+      const overBudget = remaining < 0;
+      return `
+        <div class="project-card" data-id="${p.id}">
+          <div class="project-card-head">
+            <span class="project-card-name">${escapeHtml(p.ten)}</span>
+            <span class="project-card-arrow">→</span>
+          </div>
+          ${p.ghiChu ? `<div class="project-card-note">${escapeHtml(p.ghiChu)}</div>` : ""}
+          <div class="project-card-stats">
+            <div class="project-stat">
+              <span>Ngân sách</span>
+              <strong>${formatMoney(budget)}</strong>
+            </div>
+            <div class="project-stat expense">
+              <span>Đã chi</span>
+              <strong>${formatMoney(spent)}</strong>
+            </div>
+            <div class="project-stat remaining">
+              <span>${overBudget ? "Vượt ngân sách" : "Còn lại"}</span>
+              <strong class="${overBudget ? "over-budget" : ""}">${formatMoney(Math.abs(remaining))}</strong>
+            </div>
+          </div>
+        </div>`;
+    })
+    .join("");
+  renderPendingInfo();
+}
+
+async function addProject(name, note) {
+  if (!navigator.onLine) {
+    showToast("Cần có mạng để tạo dự án mới.");
+    throw new Error("offline");
+  }
+  const id = genId();
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A2:D2:append?valueInputOption=USER_ENTERED`, {
+    method: "POST",
+    body: JSON.stringify({ values: [[id, name, note || "", todayStr()]] }),
+  });
+  await loadAllData();
+  return id;
+}
+
+function openProject(id) {
+  const p = state.projects.find((pr) => pr.id === id);
+  if (!p) {
+    showToast("Không tìm thấy dự án này.");
+    return;
+  }
+  state.currentProjectId = id;
+  $("headerTitle").textContent = p.ten;
+  $("backToProjectsBtn").classList.remove("hidden");
+  showScreen("app");
+  renderProjectDetail();
+}
+
+function backToProjectsOverview() {
+  state.currentProjectId = null;
+  $("headerTitle").textContent = CONFIG.APP_NAME;
+  $("backToProjectsBtn").classList.add("hidden");
+  showScreen("projects");
+  renderProjectsOverview();
+}
+
+// ---------------------------------------------------------------
+// Rendering - Chi tiết 1 dự án (dashboard cũ, nay theo phạm vi dự án)
 // ---------------------------------------------------------------
 function renderNhaThauList() {
+  const duAnId = state.currentProjectId;
   const list = $("nhaThauList");
   list.innerHTML = "";
   state.nhaThauList.forEach((nt) => {
     const card = document.createElement("div");
     card.className = "wallet-card";
-    card.innerHTML = `<div class="w-name">${escapeHtml(nt.ten)}</div><div class="w-balance">Đã chi: ${formatMoney(nhaThauSpent(nt.id))}</div>`;
+    card.innerHTML = `<div class="w-name">${escapeHtml(nt.ten)}</div><div class="w-balance">Đã chi: ${formatMoney(nhaThauSpent(duAnId, nt.id))}</div>`;
     list.appendChild(card);
   });
 
@@ -560,15 +873,10 @@ function renderHangMucOptions(nhom, type) {
     .join("");
 }
 
-function renderNhomDatalist() {
-  const list = $("nhomDatalist");
-  list.innerHTML = uniqueAllGroups().map((g) => `<option value="${escapeHtml(g)}"></option>`).join("");
-}
-
 function renderMonthFilterOptions() {
   const select = $("filterMonth");
   const prevValue = select.value;
-  const months = new Set(allTransactionsSorted().map((t) => monthKey(t.ngay)));
+  const months = new Set(projectTransactions(state.currentProjectId).map((t) => monthKey(t.ngay)));
   months.add(monthKey(todayStr()));
   const sorted = [...months].filter(Boolean).sort().reverse();
   select.innerHTML = sorted
@@ -578,8 +886,9 @@ function renderMonthFilterOptions() {
 }
 
 function renderSummary() {
-  const budget = totalBudget();
-  const spent = totalSpent();
+  const duAnId = state.currentProjectId;
+  const budget = totalBudget(duAnId);
+  const spent = totalSpent(duAnId);
   const remaining = budget - spent;
 
   $("totalBudget").textContent = formatMoney(budget);
@@ -590,28 +899,23 @@ function renderSummary() {
   remainingEl.classList.toggle("over-budget", remaining < 0);
   $("remainingLabel").textContent = remaining < 0 ? "Vượt ngân sách" : "Còn lại so với ngân sách";
 
-  const curMonth = monthKey(todayStr());
-  let income = 0, expense = 0;
-  allTransactionsSorted().forEach((t) => {
-    if (monthKey(t.ngay) !== curMonth) return;
-    if (t.loai === "Thu") income += t.soTien;
-    else expense += t.soTien;
-  });
+  const { income, expense } = projectMonthIncomeExpense(duAnId);
   $("monthIncome").textContent = formatMoney(income);
   $("monthExpense").textContent = formatMoney(expense);
 }
 
 function renderBudgetList() {
-  const groups = uniqueGroupsForType("Chi");
+  const duAnId = state.currentProjectId;
+  const groups = budgetedGroupsForProject(duAnId);
   const list = $("budgetList");
   if (groups.length === 0) {
-    list.innerHTML = `<p class="empty-hint">Chưa có Nhóm/Hạng mục nào. Thêm trong mục ⚙ Cài đặt.</p>`;
+    list.innerHTML = `<p class="empty-hint">Dự án này chưa đặt ngân sách. Vào ⚙ Cài đặt để đặt ngân sách cho từng Nhóm/Hạng mục.</p>`;
     return;
   }
   list.innerHTML = groups
     .map((nhom) => {
-      const budget = groupBudget(nhom);
-      const spent = groupSpent(nhom);
+      const budget = groupBudget(duAnId, nhom);
+      const spent = groupSpent(duAnId, nhom);
       const pct = budget > 0 ? (spent / budget) * 100 : spent > 0 ? 100 : 0;
       const widthPct = Math.min(pct, 100);
       const barClass = pct >= 100 ? "over" : pct >= 80 ? "warn" : "";
@@ -631,10 +935,11 @@ function renderBudgetList() {
 }
 
 function renderTransactions() {
+  const duAnId = state.currentProjectId;
   const monthFilter = $("filterMonth").value;
   const nhaThauFilter = $("filterNhaThau").value;
   const list = $("transactionList");
-  const items = allTransactionsSorted().filter((t) => {
+  const items = projectTransactions(duAnId).filter((t) => {
     if (monthFilter && monthKey(t.ngay) !== monthFilter) return false;
     if (nhaThauFilter && t.nhaThauId !== nhaThauFilter) return false;
     return true;
@@ -666,7 +971,7 @@ function renderTransactions() {
     .join("");
 }
 
-function renderAll() {
+function renderProjectDetail() {
   renderNhaThauList();
   renderNhomDatalist();
   renderMonthFilterOptions();
@@ -676,29 +981,53 @@ function renderAll() {
   renderPendingInfo();
 }
 
-function renderPendingInfo() {
-  const n = state.pendingQueue.length;
-  $("pendingInfo").textContent =
-    n === 0
-      ? "Không có giao dịch nào đang chờ đồng bộ."
-      : `Có ${n} giao dịch đang chờ đồng bộ lên Google Sheets.`;
-  updateSyncBadge();
+// ---------------------------------------------------------------
+// Ngân sách theo dự án (NganSach) - thêm/cập nhật (upsert)
+// ---------------------------------------------------------------
+function renderBudgetFormOptions() {
+  const nhomSelect = $("budgetNhom");
+  const groups = uniqueGroupsForType("Chi");
+  nhomSelect.innerHTML = groups.map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+  renderBudgetHangMucOptions(groups[0] || "");
 }
 
-function updateSyncBadge() {
-  const badge = $("syncStatus");
+function renderBudgetHangMucOptions(nhom) {
+  const select = $("budgetHangMuc");
+  const opts = state.categories.filter((c) => c.loai === "Chi" && c.nhom === nhom);
+  select.innerHTML = opts.map((c) => `<option value="${escapeHtml(c.hangMuc)}">${escapeHtml(c.hangMuc)}</option>`).join("");
+}
+
+async function addOrUpdateBudget(nhom, hangMuc, amount) {
   if (!navigator.onLine) {
-    badge.classList.remove("pending");
-    badge.classList.add("offline");
-    badge.title = "Đang ngoại tuyến - dữ liệu mới sẽ tự đồng bộ khi có mạng";
-  } else if (state.pendingQueue.length > 0) {
-    badge.classList.remove("offline");
-    badge.classList.add("pending");
-    badge.title = `${state.pendingQueue.length} giao dịch đang chờ đồng bộ`;
-  } else {
-    badge.classList.remove("offline", "pending");
-    badge.title = "Đã đồng bộ";
+    showToast("Cần có mạng để cập nhật ngân sách.");
+    return;
   }
+  if (!state.currentProjectId) {
+    showToast("Vui lòng chọn 1 dự án trước.");
+    return;
+  }
+  const amt = Math.round(Number(amount) || 0);
+  const existing = state.budgets.find(
+    (b) => b.duAnId === state.currentProjectId && b.nhom === nhom && b.hangMuc === hangMuc
+  );
+  if (existing) {
+    await apiFetch(
+      `${SHEETS_API}/${state.spreadsheetId}/values/NganSach!A${existing._row}:F${existing._row}?valueInputOption=USER_ENTERED`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ values: [[existing.id, state.currentProjectId, nhom, hangMuc, amt, existing.ghiChu || ""]] }),
+      }
+    );
+  } else {
+    const id = genId();
+    await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NganSach!A2:F2:append?valueInputOption=USER_ENTERED`, {
+      method: "POST",
+      body: JSON.stringify({ values: [[id, state.currentProjectId, nhom, hangMuc, amt, ""]] }),
+    });
+  }
+  await loadAllData();
+  renderCurrentScreen();
+  showToast(`Đã lưu ngân sách: ${nhom} · ${hangMuc}`);
 }
 
 // ---------------------------------------------------------------
@@ -706,11 +1035,11 @@ function updateSyncBadge() {
 // ---------------------------------------------------------------
 async function addTransactionOnline(tx) {
   await apiFetch(
-    `${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!A2:H2:append?valueInputOption=USER_ENTERED`,
+    `${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!A2:I2:append?valueInputOption=USER_ENTERED`,
     {
       method: "POST",
       body: JSON.stringify({
-        values: [[tx.id, tx.ngay, tx.loai, tx.soTien, tx.nhom, tx.hangMuc, tx.nhaThauId, tx.ghiChu || ""]],
+        values: [[tx.id, tx.ngay, tx.loai, tx.soTien, tx.nhom, tx.hangMuc, tx.nhaThauId, tx.ghiChu || "", tx.duAnId || ""]],
       }),
     }
   );
@@ -718,11 +1047,11 @@ async function addTransactionOnline(tx) {
 
 async function updateTransactionOnline(tx) {
   await apiFetch(
-    `${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!A${tx._row}:H${tx._row}?valueInputOption=USER_ENTERED`,
+    `${SHEETS_API}/${state.spreadsheetId}/values/GiaoDich!A${tx._row}:I${tx._row}?valueInputOption=USER_ENTERED`,
     {
       method: "PUT",
       body: JSON.stringify({
-        values: [[tx.id, tx.ngay, tx.loai, tx.soTien, tx.nhom, tx.hangMuc, tx.nhaThauId, tx.ghiChu || ""]],
+        values: [[tx.id, tx.ngay, tx.loai, tx.soTien, tx.nhom, tx.hangMuc, tx.nhaThauId, tx.ghiChu || "", tx.duAnId || ""]],
       }),
     }
   );
@@ -750,6 +1079,10 @@ async function deleteTransactionOnline(tx) {
 
 async function submitTransactionForm(evt) {
   evt.preventDefault();
+  if (!state.currentProjectId) {
+    showToast("Vui lòng chọn 1 dự án trước khi thêm giao dịch.");
+    return;
+  }
   const id = $("txId").value;
   const tx = {
     id: id || genId(),
@@ -760,6 +1093,7 @@ async function submitTransactionForm(evt) {
     hangMuc: $("txHangMuc").value,
     nhaThauId: $("txNhaThau").value,
     ghiChu: $("txNote").value.trim(),
+    duAnId: id ? undefined : state.currentProjectId, // giữ nguyên duAnId cũ khi sửa
   };
 
   if (!tx.soTien || tx.soTien <= 0) {
@@ -790,9 +1124,10 @@ async function submitTransactionForm(evt) {
     }
     try {
       tx._row = existing._row;
+      tx.duAnId = existing.duAnId;
       await updateTransactionOnline(tx);
       await loadAllData();
-      renderAll();
+      renderCurrentScreen();
       showToast("Đã cập nhật giao dịch");
     } catch (e) {
       console.error(e);
@@ -806,7 +1141,7 @@ async function submitTransactionForm(evt) {
     try {
       await addTransactionOnline(tx);
       await loadAllData();
-      renderAll();
+      renderCurrentScreen();
       showToast("Đã lưu giao dịch");
       return;
     } catch (e) {
@@ -816,7 +1151,7 @@ async function submitTransactionForm(evt) {
 
   state.pendingQueue.push(tx);
   saveQueue();
-  renderAll();
+  renderCurrentScreen();
   showToast("Đã lưu tạm - sẽ đồng bộ khi có mạng");
 }
 
@@ -836,7 +1171,7 @@ async function deleteCurrentTransaction() {
     try {
       await deleteTransactionOnline(existing);
       await loadAllData();
-      renderAll();
+      renderCurrentScreen();
       showToast("Đã xoá giao dịch");
     } catch (e) {
       console.error(e);
@@ -845,7 +1180,7 @@ async function deleteCurrentTransaction() {
   } else {
     state.pendingQueue = state.pendingQueue.filter((q) => q.id !== id);
     saveQueue();
-    renderAll();
+    renderCurrentScreen();
     showToast("Đã xoá khỏi hàng đợi");
   }
 }
@@ -866,7 +1201,7 @@ async function flushQueue() {
       saveQueue();
     }
     await loadAllData();
-    renderAll();
+    renderCurrentScreen();
     showToast("Đã đồng bộ xong các giao dịch chờ");
   } catch (e) {
     console.warn("Flush queue lỗi, sẽ thử lại sau:", e);
@@ -877,7 +1212,7 @@ async function flushQueue() {
 }
 
 // ---------------------------------------------------------------
-// Nhà thầu / danh mục mới
+// Nhà thầu / danh mục mới (dùng chung mọi dự án)
 // ---------------------------------------------------------------
 async function addNhaThau(name, note) {
   if (!navigator.onLine) {
@@ -890,22 +1225,26 @@ async function addNhaThau(name, note) {
     body: JSON.stringify({ values: [[id, name, note || ""]] }),
   });
   await loadAllData();
-  renderAll();
+  renderCurrentScreen();
   showToast("Đã thêm: " + name);
 }
 
-async function addCategory(nhom, name, type, budget) {
+async function addCategory(nhom, name, type) {
   if (!navigator.onLine) {
     showToast("Cần có mạng để thêm Nhóm/Hạng mục mới.");
     return;
   }
   const id = genId();
-  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A2:F2:append?valueInputOption=USER_ENTERED`, {
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DanhMuc!A2:E2:append?valueInputOption=USER_ENTERED`, {
     method: "POST",
-    body: JSON.stringify({ values: [[id, nhom, name, type, Math.round(Number(budget) || 0), ""]] }),
+    body: JSON.stringify({ values: [[id, nhom, name, type, ""]] }),
   });
   await loadAllData();
-  renderAll();
+  renderNhomDatalist();
+  if (state.currentProjectId) {
+    renderBudgetFormOptions();
+    renderCurrentScreen();
+  }
   showToast(`Đã thêm hạng mục: ${nhom} · ${name}`);
 }
 
@@ -919,7 +1258,24 @@ function closeModal(id) {
   $(id).classList.add("hidden");
 }
 
+function openSettingsModal() {
+  const block = $("budgetSettingsBlock");
+  if (state.currentProjectId) {
+    const p = state.projects.find((pr) => pr.id === state.currentProjectId);
+    block.classList.remove("hidden");
+    $("budgetSettingsProjectName").textContent = p ? p.ten : "";
+    renderBudgetFormOptions();
+  } else {
+    block.classList.add("hidden");
+  }
+  openModal("settingsModal");
+}
+
 function openAddTransactionModal() {
+  if (!state.currentProjectId) {
+    showToast("Vui lòng chọn 1 dự án trước khi thêm giao dịch.");
+    return;
+  }
   $("txModalTitle").textContent = "Thêm giao dịch";
   $("txId").value = "";
   $("txAmount").value = "";
@@ -955,6 +1311,8 @@ function setTxType(type) {
 
 function showScreen(which) {
   $("loginScreen").classList.toggle("hidden", which !== "login");
+  $("appHeader").classList.toggle("hidden", which === "login");
+  $("projectsScreen").classList.toggle("hidden", which !== "projects");
   $("appScreen").classList.toggle("hidden", which !== "app");
 }
 
@@ -967,12 +1325,14 @@ async function bootstrapAfterLogin() {
     await ensureSpreadsheet();
     await loadAllData();
     await flushQueue();
-    renderAll();
+    showScreen("projects");
+    renderProjectsOverview();
   } catch (e) {
     console.error(e);
     if (loadLocalCache()) {
       showToast("Không kết nối được Google Sheets, đang hiển thị dữ liệu đã lưu tạm.");
-      renderAll();
+      showScreen("projects");
+      renderProjectsOverview();
     } else {
       showToast("Lỗi kết nối: " + e.message);
     }
@@ -994,6 +1354,31 @@ function wireEvents() {
   });
 
   $("logoutBtn").addEventListener("click", logout);
+
+  $("addProjectBtn").addEventListener("click", () => openModal("projectModal"));
+
+  $("newProjectForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("newProjectName").value.trim();
+    const note = $("newProjectNote").value.trim();
+    if (!name) return;
+    try {
+      const id = await addProject(name, note);
+      closeModal("projectModal");
+      $("newProjectForm").reset();
+      openProject(id);
+    } catch (err) {
+      showToast("Lỗi: " + err.message);
+    }
+  });
+
+  $("backToProjectsBtn").addEventListener("click", backToProjectsOverview);
+
+  $("projectList").addEventListener("click", (e) => {
+    const card = e.target.closest(".project-card");
+    if (!card) return;
+    openProject(card.dataset.id);
+  });
 
   $("addTransactionBtn").addEventListener("click", openAddTransactionModal);
 
@@ -1032,8 +1417,30 @@ function wireEvents() {
   $("filterMonth").addEventListener("change", renderTransactions);
   $("filterNhaThau").addEventListener("change", renderTransactions);
 
-  $("settingsBtn").addEventListener("click", () => openModal("settingsModal"));
-  $("addNhaThauBtn").addEventListener("click", () => openModal("settingsModal"));
+  $("settingsBtn").addEventListener("click", openSettingsModal);
+  $("addNhaThauBtn").addEventListener("click", openSettingsModal);
+
+  $("budgetNhom").addEventListener("change", (e) => {
+    renderBudgetHangMucOptions(e.target.value);
+  });
+
+  $("newBudgetForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nhom = $("budgetNhom").value;
+    const hangMuc = $("budgetHangMuc").value;
+    const amount = $("budgetAmount").value;
+    if (!nhom || !hangMuc) {
+      showToast("Chưa có Nhóm/Hạng mục nào, thêm ở mục bên dưới trước.");
+      return;
+    }
+    try {
+      await addOrUpdateBudget(nhom, hangMuc, amount);
+      $("newBudgetForm").reset();
+      renderBudgetFormOptions();
+    } catch (err) {
+      showToast("Lỗi: " + err.message);
+    }
+  });
 
   $("newNhaThauForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1053,10 +1460,9 @@ function wireEvents() {
     const nhom = $("newCategoryNhom").value.trim();
     const name = $("newCategoryName").value.trim();
     const type = $("newCategoryType").value;
-    const budget = $("newCategoryBudget").value;
     if (!nhom || !name) return;
     try {
-      await addCategory(nhom, name, type, budget);
+      await addCategory(nhom, name, type);
       $("newCategoryForm").reset();
     } catch (err) {
       showToast("Lỗi: " + err.message);
@@ -1071,7 +1477,7 @@ function wireEvents() {
     await flushQueue();
     try {
       await loadAllData();
-      renderAll();
+      renderCurrentScreen();
       showToast("Đã đồng bộ");
     } catch (e) {
       showToast("Lỗi đồng bộ: " + e.message);
@@ -1097,11 +1503,13 @@ function applyBranding() {
   const versionLabel = `${CONFIG.APP_NAME} Ver ${CONFIG.APP_VERSION}`;
   document.title = versionLabel;
   const titleEl = $("appTitle");
-  const titleTopEl = $("appTitleTop");
+  const headerTitleEl = $("headerTitle");
   const versionLoginEl = $("appVersionLogin");
   const versionSettingsEl = $("appVersionSettings");
   if (titleEl) titleEl.textContent = CONFIG.APP_NAME;
-  if (titleTopEl) titleTopEl.textContent = CONFIG.APP_NAME;
+  // Giá trị mặc định ban đầu - openProject()/backToProjectsOverview() sẽ
+  // ghi đè thành tên dự án hoặc tên app tuỳ màn hình đang xem.
+  if (headerTitleEl) headerTitleEl.textContent = CONFIG.APP_NAME;
   if (versionLoginEl) versionLoginEl.textContent = versionLabel;
   if (versionSettingsEl) versionSettingsEl.textContent = versionLabel;
 }
