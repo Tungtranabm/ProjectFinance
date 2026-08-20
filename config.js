@@ -14,7 +14,7 @@ const CONFIG = {
   // APP_VERSION (1.01 -> 1.02 -> 1.03 ...) để tiện theo dõi. Nhớ cập nhật
   // cùng lúc với CACHE_NAME trong service-worker.js và CHANGELOG.md.
   APP_NAME: "Project Finance",
-  APP_VERSION: "1.04",
+  APP_VERSION: "1.05",
 
   // Dán OAuth Client ID (dạng "xxxx.apps.googleusercontent.com") vào đây
   // (đã điền sẵn Client ID bạn dùng từ trước - không cần đổi lại)

@@ -2,6 +2,17 @@
 
 Ghi lại các thay đổi qua từng phiên bản để tiện theo dõi.
 
+## Ver 1.05 — 2026-08-18
+- **Ô nhập Số tiền (giao dịch) và Ngân sách dự kiến:**
+  - Cho phép nhập số tiền = 0 (trước đây bắt buộc > 0, và do ô nhập kiểu
+    số có bước nhảy cố định - 1.000 cho giao dịch, 100.000 cho ngân sách -
+    nên gõ số không tròn theo bước nhảy đó cũng bị chặn không cho lưu).
+    Nay chỉ cần số tiền ≥ 0 là lưu được, không còn giới hạn phải chia hết
+    cho mốc nào cả.
+  - Ô nhập tự thêm dấu "." phân cách hàng nghìn ngay khi gõ (VD: gõ
+    `6500000` sẽ hiện `6.500.000`) để dễ đọc hơn, giống cách hiển thị số
+    tiền ở các nơi khác trong app.
+
 ## Ver 1.04 — 2026-08-18
 - **Sửa tên dự án:** trên màn hình "Dự án của bạn", bấm biểu tượng ✎ trên
   mỗi thẻ dự án để đổi tên/ghi chú (không mở dự án khi bấm nút này).

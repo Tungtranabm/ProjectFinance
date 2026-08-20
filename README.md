@@ -1,6 +1,6 @@
 # Project Finance — PWA theo dõi thu chi nhiều dự án, lưu trên Google Sheets
 
-**Phiên bản hiện tại: Ver 1.04** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
+**Phiên bản hiện tại: Ver 1.05** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
 
 Ứng dụng web (PWA) chạy hoàn toàn ở phía trình duyệt — không có server riêng.
 Khi bạn đăng nhập bằng Google, app sẽ tự tạo (hoặc tìm lại) **một file

@@ -163,7 +163,7 @@
 
         <label class="field">
           <span>Số tiền (₫)</span>
-          <input type="number" id="txAmount" min="0" step="1000" inputmode="numeric" required />
+          <input type="text" id="txAmount" inputmode="numeric" placeholder="0" required />
         </label>
 
         <label class="field">
@@ -213,7 +213,7 @@
           <form id="newBudgetForm" class="inline-form">
             <select id="budgetNhom" required></select>
             <select id="budgetHangMuc" required></select>
-            <input type="number" id="budgetAmount" placeholder="Ngân sách dự kiến (₫)" min="0" step="100000" required />
+            <input type="text" id="budgetAmount" inputmode="numeric" placeholder="Ngân sách dự kiến (₫)" required />
             <button type="submit" class="btn btn-secondary">Lưu ngân sách</button>
           </form>
         </div>

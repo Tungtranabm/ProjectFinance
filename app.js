@@ -133,6 +133,41 @@ function formatMoney(n) {
   return v.toLocaleString("vi-VN") + " ₫";
 }
 
+// Ô nhập số tiền dùng type="text" + định dạng dấu chấm phân cách hàng
+// nghìn khi gõ (VD: 8000000 -> 8.000.000), để dễ đọc và không bị giới
+// hạn "phải chia hết cho 1 mốc nào đó" như input type="number" + step.
+function parseNumberInput(str) {
+  const digits = String(str || "").replace(/[^\d]/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+// Dùng để đổ 1 số đã biết (VD: khi mở modal Sửa) vào ô nhập - hiển thị
+// "0" nếu số đó thật sự là 0, chỉ để trống khi không có giá trị.
+function formatNumberInput(n) {
+  if (n === null || n === undefined || n === "" || isNaN(n)) return "";
+  return Number(n).toLocaleString("vi-VN");
+}
+
+function attachThousandsFormatting(id) {
+  const el = $(id);
+  el.addEventListener("input", () => {
+    const cursorPos = el.selectionStart;
+    const digitsBeforeCursor = el.value.slice(0, cursorPos).replace(/[^\d]/g, "").length;
+    // Dựa theo CHUỖI SỐ đã gõ (không phải giá trị số), để gõ "0" vẫn hiện
+    // "0" thay vì bị coi như chưa nhập gì và xoá trắng ô nhập.
+    const digits = el.value.replace(/[^\d]/g, "");
+    const formatted = digits ? parseInt(digits, 10).toLocaleString("vi-VN") : "";
+    el.value = formatted;
+    let count = 0, pos = formatted.length;
+    for (let i = 0; i < formatted.length; i++) {
+      if (/\d/.test(formatted[i])) count++;
+      if (count === digitsBeforeCursor) { pos = i + 1; break; }
+    }
+    if (digitsBeforeCursor === 0) pos = 0;
+    el.setSelectionRange(pos, pos);
+  });
+}
+
 function todayStr() {
   const d = new Date();
   return d.toISOString().slice(0, 10);
@@ -1139,7 +1174,7 @@ async function submitTransactionForm(evt) {
     id: id || genId(),
     ngay: $("txDate").value || todayStr(),
     loai: state.editingType,
-    soTien: Math.round(Number($("txAmount").value)),
+    soTien: parseNumberInput($("txAmount").value),
     nhom: $("txNhom").value,
     hangMuc: $("txHangMuc").value,
     nhaThauId: $("txNhaThau").value,
@@ -1147,7 +1182,7 @@ async function submitTransactionForm(evt) {
     duAnId: id ? undefined : state.currentProjectId, // giữ nguyên duAnId cũ khi sửa
   };
 
-  if (!tx.soTien || tx.soTien <= 0) {
+  if (tx.soTien < 0) {
     showToast("Số tiền không hợp lệ");
     return;
   }
@@ -1383,7 +1418,7 @@ function openAddTransactionModal() {
 function openEditTransactionModal(tx) {
   $("txModalTitle").textContent = "Sửa giao dịch";
   $("txId").value = tx.id;
-  $("txAmount").value = tx.soTien;
+  $("txAmount").value = formatNumberInput(tx.soTien);
   $("txDate").value = tx.ngay;
   $("txNote").value = tx.ghiChu || "";
   $("txDeleteBtn").classList.remove("hidden");
@@ -1437,6 +1472,9 @@ async function bootstrapAfterLogin() {
 // Wire up events
 // ---------------------------------------------------------------
 function wireEvents() {
+  attachThousandsFormatting("txAmount");
+  attachThousandsFormatting("budgetAmount");
+
   $("loginBtn").addEventListener("click", () => {
     $("loginError").classList.add("hidden");
     if (!tokenClient) {
@@ -1536,7 +1574,7 @@ function wireEvents() {
     e.preventDefault();
     const nhom = $("budgetNhom").value;
     const hangMuc = $("budgetHangMuc").value;
-    const amount = $("budgetAmount").value;
+    const amount = parseNumberInput($("budgetAmount").value);
     if (!nhom || !hangMuc) {
       showToast("Chưa có Nhóm/Hạng mục nào, thêm ở mục bên dưới trước.");
       return;
