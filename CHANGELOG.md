@@ -2,6 +2,30 @@
 
 Ghi lại các thay đổi qua từng phiên bản để tiện theo dõi.
 
+## Ver 1.06 — 2026-08-20
+- **Thẻ tổng quan dự án đổi trọng tâm sang thu/chi thực tế** thay vì
+  ngân sách: "Ngân sách dự kiến" đổi thành **"Tổng thu"** (tổng các khoản
+  Thu của dự án), giữ nguyên "Đã chi", số lớn ở trên đổi thành "Còn lại"
+  (Tổng thu − Đã chi) hoặc "Chi vượt thu" khi âm. Bỏ hàng "Thu tháng
+  này"/"Chi tháng này". Mục "Ngân sách theo nhóm" (so sánh dự kiến vs
+  thực chi theo Nhóm/Hạng mục, đặt ở ⚙ Cài đặt) giữ nguyên, không đổi.
+- **Tách riêng Nhà cung cấp và Đội thi công:** đổi tên "Nhà thầu" thành
+  **"Nhà cung cấp"**; khi thêm mới (⚙ Cài đặt) có nút chọn đơn vị đó là
+  Nhà cung cấp hay Đội thi công, lưu tách loại riêng.
+- **Mục "Nhà cung cấp / Đội thi công" trên dashboard đổi thành dạng danh
+  sách**, chia 2 nhóm rõ ràng, và **chỉ hiện những đơn vị đã thật sự phát
+  sinh giao dịch trong dự án đang xem** — tránh danh sách bị rối khi dùng
+  chung cho nhiều dự án. Dropdown chọn đơn vị khi THÊM giao dịch vẫn hiện
+  đầy đủ toàn bộ danh sách dùng chung (kể cả đơn vị chưa dùng ở dự án
+  này), chia theo nhóm Nhà cung cấp/Đội thi công cho dễ tìm.
+- **Bộ lọc theo tháng** (bên trái, trong dashboard 1 dự án) thêm lựa chọn
+  **"Tất cả"** và mặc định chọn "Tất cả" thay vì tháng hiện tại.
+- **Bộ lọc theo đơn vị** (bên phải) cũng chỉ hiện các đơn vị đã phát sinh
+  giao dịch trong dự án đang xem, thay vì toàn bộ danh sách dùng chung.
+- File Sheet cũ tự động thêm cột phân loại cho `NhaThau` ở lần đăng nhập
+  đầu tiên trên bản này; các đơn vị có sẵn tạm xếp vào "Nhà cung cấp" cho
+  tới khi bạn sửa lại đúng loại.
+
 ## Ver 1.05 — 2026-08-18
 - **Ô nhập Số tiền (giao dịch) và Ngân sách dự kiến:**
   - Cho phép nhập số tiền = 0 (trước đây bắt buộc > 0, và do ô nhập kiểu

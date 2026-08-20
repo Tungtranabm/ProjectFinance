@@ -246,23 +246,29 @@ html, body {
 .project-stat.expense strong { color: var(--expense); }
 .project-stat.remaining strong.over-budget { color: var(--expense); }
 
-/* ---------- Wallets ---------- */
-.wallet-list {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+/* ---------- Nhà cung cấp / Đội thi công (danh sách theo dự án) ---------- */
+.partner-groups { display: flex; flex-direction: column; gap: 16px; }
+.partner-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 8px;
 }
-.wallet-card {
-  min-width: 140px;
+.partner-group-list { display: flex; flex-direction: column; gap: 8px; }
+.partner-item {
   background: var(--surface);
-  border-radius: 12px;
-  padding: 14px;
-  flex-shrink: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
-.wallet-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
-.wallet-card .w-name { font-size: 13px; color: var(--text-dim); }
-.wallet-card .w-balance { font-size: 16px; font-weight: 700; }
+.partner-item-main { display: flex; align-items: center; gap: 4px; }
+.partner-item-name { font-size: 14px; font-weight: 600; }
+.partner-item-amount { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
 
 /* ---------- Filters ---------- */
 .filter-row { display: flex; gap: 10px; margin-top: 22px; }
@@ -388,6 +394,10 @@ html, body {
 }
 .type-btn.active.expense { background: rgba(249,115,115,.15); color: var(--expense); border-color: var(--expense); }
 .type-btn.active.income { background: rgba(34,197,94,.15); color: var(--income); border-color: var(--income); }
+.type-btn.active { background: rgba(45,212,191,.15); color: var(--accent); border-color: var(--accent); }
+
+.type-toggle.small { margin-bottom: 0; flex: 1 1 100%; gap: 6px; }
+.type-toggle.small .type-btn { padding: 8px 10px; font-size: 13px; }
 
 .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
 .modal-actions .btn { flex: 1; }

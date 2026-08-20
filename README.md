@@ -1,6 +1,6 @@
 # Project Finance — PWA theo dõi thu chi nhiều dự án, lưu trên Google Sheets
 
-**Phiên bản hiện tại: Ver 1.05** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
+**Phiên bản hiện tại: Ver 1.06** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
 
 Ứng dụng web (PWA) chạy hoàn toàn ở phía trình duyệt — không có server riêng.
 Khi bạn đăng nhập bằng Google, app sẽ tự tạo (hoặc tìm lại) **một file
@@ -13,10 +13,11 @@ nhập, bạn sẽ thấy màn hình **"Dự án của bạn"** — tạo bao nh
 ý, bấm vào một dự án để xem dashboard riêng của nó. Trong mỗi dự án, mỗi
 giao dịch được gắn vào một **Nhóm** (VD: Xây dựng cơ bản, Hoàn thiện, Ốp
 lát, Nội thất...) và **Hạng mục** con bên trong nhóm đó (VD: Xây, Tô,
-Bả...) qua dropdown 2 tầng, kèm **Nhà thầu/Đội thi công** thực hiện.
-Nhóm/Hạng mục và Nhà thầu dùng chung cho mọi dự án, còn **Ngân sách dự
-kiến** thì đặt riêng cho từng dự án để app tự so sánh với số tiền đã chi
-thực tế theo từng Nhóm của đúng dự án đó.
+Bả...) qua dropdown 2 tầng, kèm **Nhà cung cấp** (vật tư, vật liệu...)
+hoặc **Đội thi công** thực hiện. Nhóm/Hạng mục và danh sách Nhà cung
+cấp/Đội thi công dùng chung cho mọi dự án, còn **Ngân sách dự kiến** thì
+đặt riêng cho từng dự án để app tự so sánh với số tiền đã chi thực tế
+theo từng Nhóm của đúng dự án đó.
 
 Vì không có server, bạn cần tự làm 2 việc **một lần duy nhất** trước khi
 dùng được:
@@ -158,13 +159,14 @@ Lưu file lại.
    Project Finance (unsafe)** → **Continue**/**Allow**. Cảnh báo này là bình
    thường với app tự làm cho cá nhân, không phải lỗi.
 3. App sẽ tự tạo file `Project Finance Data` trong Drive của bạn, kèm sẵn
-   2 nhà thầu mẫu ("Đội thi công chính", "Chủ đầu tư / Nguồn vốn") và bộ
-   Nhóm/Hạng mục mẫu cho dự án nội thất (giống bản Excel nháp đã gửi bạn
-   review trước đó) — dùng chung cho mọi dự án bạn sẽ tạo. Màn hình đầu
-   tiên sẽ trống, bấm **"+ Thêm dự án"** để tạo dự án đầu tiên (VD: tên
-   công trình/căn hộ), rồi vào ⚙ Cài đặt của dự án đó để đặt ngân sách dự
-   kiến cho từng Hạng mục. Có thể thêm giao dịch, nhà thầu, Nhóm/Hạng mục
-   mới thoải mái trong mục ⚙ Cài đặt bất cứ lúc nào.
+   2 đơn vị mẫu ("Đội thi công chính" - Đội thi công, "Chủ đầu tư / Nguồn
+   vốn" - Nhà cung cấp) và bộ Nhóm/Hạng mục mẫu cho dự án nội thất (giống
+   bản Excel nháp đã gửi bạn review trước đó) — dùng chung cho mọi dự án
+   bạn sẽ tạo. Màn hình đầu tiên sẽ trống, bấm **"+ Thêm dự án"** để tạo
+   dự án đầu tiên (VD: tên công trình/căn hộ), rồi vào ⚙ Cài đặt của dự
+   án đó để đặt ngân sách dự kiến cho từng Hạng mục. Có thể thêm giao
+   dịch, Nhà cung cấp/Đội thi công, Nhóm/Hạng mục mới thoải mái trong mục
+   ⚙ Cài đặt bất cứ lúc nào.
 4. Bạn có thể mở file Google Sheet gốc bất cứ lúc nào bằng nút **⚙ → Mở
    file Google Sheet ↗** trong app, hoặc tìm trực tiếp trong Google Drive.
 
@@ -175,9 +177,9 @@ Lưu file lại.
 - **Lưu trữ:** 5 sheet trong 1 file —
   - `DuAn` (danh sách dự án): ID, Tên, Ghi chú, Ngày tạo.
   - `GiaoDich` (giao dịch): ID, Ngày, Loại (Thu/Chi), Số tiền, Nhóm, Hạng
-    mục, Nhà thầu, Ghi chú, **DuAnID** (dự án nào).
-  - `NhaThau` (nhà thầu/đội thi công — dùng chung mọi dự án): ID, Tên,
-    Ghi chú.
+    mục, NhaThauID, Ghi chú, **DuAnID** (dự án nào).
+  - `NhaThau` (Nhà cung cấp/Đội thi công — dùng chung mọi dự án): ID,
+    Tên, **Loai** (`NhaCungCap` hoặc `DoiThiCong`), Ghi chú.
   - `DanhMuc` (danh sách Nhóm/Hạng mục để chọn qua dropdown — dùng chung
     mọi dự án): ID, Nhóm, Hạng mục, Loại, Ghi chú.
   - `NganSach` (ngân sách dự kiến, riêng theo từng dự án): ID, **DuAnID**,
@@ -186,15 +188,16 @@ Lưu file lại.
   đăng nhập, liệt kê tất cả dự án kèm Ngân sách/Đã chi/Còn lại tổng của
   từng dự án. Mở 1 dự án để vào dashboard chi tiết (y hệt bản trước, nay
   chỉ lọc theo đúng dự án đó); bấm nút "←" ở góc trên để quay lại danh
-  sách dự án. Nhóm/Hạng mục và Nhà thầu dùng chung cho mọi dự án, còn
-  Ngân sách dự kiến đặt riêng theo từng dự án.
-- **Sửa tên dự án / nhà thầu:** bấm biểu tượng ✎ trên thẻ dự án (màn hình
-  "Dự án của bạn") hoặc trên thẻ nhà thầu (mục "Nhà thầu / Đội thi công"
-  trong 1 dự án) để đổi tên/ghi chú. **Xoá** dự án hoặc nhà thầu thì app
-  chưa có nút riêng — nếu thật sự cần xoá, làm trực tiếp trong Google
-  Sheet (xoá dòng tương ứng ở sheet `DuAn` hoặc `NhaThau`), nhưng nhớ xoá
-  luôn các dòng `GiaoDich`/`NganSach` liên quan tới ID đó, nếu không các
-  dòng này sẽ bị "mồ côi" (vẫn còn trong Sheet nhưng app không hiển thị).
+  sách dự án. Nhóm/Hạng mục và danh sách Nhà cung cấp/Đội thi công dùng
+  chung cho mọi dự án, còn Ngân sách dự kiến đặt riêng theo từng dự án.
+- **Sửa tên dự án / Nhà cung cấp / Đội thi công:** bấm biểu tượng ✎ trên
+  thẻ dự án (màn hình "Dự án của bạn") hoặc trên từng đơn vị (mục "Nhà
+  cung cấp / Đội thi công" trong 1 dự án) để đổi tên/loại/ghi chú. **Xoá**
+  dự án hoặc đơn vị thì app chưa có nút riêng — nếu thật sự cần xoá, làm
+  trực tiếp trong Google Sheet (xoá dòng tương ứng ở sheet `DuAn` hoặc
+  `NhaThau`), nhưng nhớ xoá luôn các dòng `GiaoDich`/`NganSach` liên quan
+  tới ID đó, nếu không các dòng này sẽ bị "mồ côi" (vẫn còn trong Sheet
+  nhưng app không hiển thị).
 - **Sửa Nhóm/Hạng mục:** app cũng chưa có nút sửa/xoá cho mục này. Có thể
   sửa trực tiếp cột `HangMuc`/`GhiChu` trong sheet `DanhMuc`, nhưng **lưu
   ý:** cột `Nhom`/`HangMuc` trong `GiaoDich` và `NganSach` lưu theo TÊN
@@ -209,16 +212,27 @@ Lưu file lại.
   theo nhóm" của dự án đó — thanh tiến độ chuyển vàng khi đạt 80% và đỏ
   khi vượt 100%. Nhập lại cùng Nhóm + Hạng mục để cập nhật số tiền mới
   (không tạo dòng trùng).
-- **Nhà thầu / Đội thi công:** Mỗi giao dịch gắn với 1 nhà thầu để biết đã
-  thanh toán cho ai bao nhiêu (mục "Nhà thầu / Đội thi công" trên
-  dashboard, tính riêng theo từng dự án). Với các khoản Thu (VD: tạm ứng
-  từ chủ đầu tư), bạn có thể chọn nhà thầu mẫu "Chủ đầu tư / Nguồn vốn"
-  hoặc tự thêm nguồn khác.
+- **Nhà cung cấp / Đội thi công:** Mỗi giao dịch gắn với 1 đơn vị để biết
+  đã thanh toán cho ai bao nhiêu. Khi thêm mới ở ⚙ Cài đặt, chọn đơn vị
+  đó là **Nhà cung cấp** (vật tư, vật liệu, cửa hàng...) hay **Đội thi
+  công** — 2 loại lưu tách riêng. Mục "Nhà cung cấp / Đội thi công" trên
+  dashboard hiển thị dạng danh sách, chia 2 nhóm, và **chỉ liệt kê những
+  đơn vị đã thật sự phát sinh giao dịch trong dự án đang xem** (để đỡ rối
+  khi bạn có nhiều dự án dùng chung 1 danh sách) — khi thêm giao dịch mới
+  thì dropdown chọn đơn vị vẫn hiện đầy đủ toàn bộ danh sách dùng chung,
+  kể cả đơn vị chưa từng dùng ở dự án này. Với các khoản Thu (VD: tạm ứng
+  từ chủ đầu tư), bạn có thể chọn đơn vị mẫu "Chủ đầu tư / Nguồn vốn" hoặc
+  tự thêm nguồn khác.
 - **Ngoại tuyến:** Thêm giao dịch mới vẫn hoạt động khi mất mạng — được
   lưu tạm trên máy và tự đồng bộ lên Sheet khi có mạng lại (xem huy hiệu
   chấm tròn ở góc trên: xanh = đã đồng bộ, vàng = đang chờ, xám = ngoại
-  tuyến). **Sửa/xoá** giao dịch, thêm Nhà thầu/Nhóm/Hạng mục mới cần có
-  mạng để tránh xung đột dữ liệu.
+  tuyến). **Sửa/xoá** giao dịch, thêm Nhà cung cấp/Đội thi công/Nhóm/Hạng
+  mục mới cần có mạng để tránh xung đột dữ liệu.
+- **Đang dùng bản trước 1.06?** Không cần làm gì thêm — lần đăng nhập đầu
+  tiên trên bản 1.06, app tự thêm cột phân loại vào sheet `NhaThau`. Các
+  đơn vị đã có sẵn từ trước sẽ tạm thời được xếp vào nhóm "Nhà cung cấp"
+  cho tới khi bạn bấm ✎ sửa lại đúng loại (Nhà cung cấp / Đội thi công)
+  cho từng đơn vị.
 - **Đang dùng bản cũ (1.02 trở về trước)?** Không cần làm gì thêm — lần
   đăng nhập đầu tiên trên bản 1.03, app tự phát hiện file Sheet cũ (chưa
   có sheet `DuAn`/`NganSach`) và tự nâng cấp: thêm 2 sheet mới, gom toàn

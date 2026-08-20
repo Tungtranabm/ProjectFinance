@@ -96,9 +96,17 @@ const DEFAULT_CATEGORIES = [
   ]},
 ];
 
+// Loai: "NhaCungCap" (nhà cung cấp vật tư/vật liệu...) hoặc "DoiThiCong"
+// (đội thi công). Dùng để chia 2 danh sách riêng trên dashboard.
+const NHATHAU_LOAI = { NHA_CUNG_CAP: "NhaCungCap", DOI_THI_CONG: "DoiThiCong" };
+const NHATHAU_LOAI_LABEL = {
+  NhaCungCap: "Nhà cung cấp",
+  DoiThiCong: "Đội thi công",
+};
+
 const DEFAULT_NHATHAU = [
-  ["Đội thi công chính", ""],
-  ["Chủ đầu tư / Nguồn vốn", "Dùng khi ghi nhận các khoản tạm ứng, thu vào"],
+  ["Đội thi công chính", "DoiThiCong", ""],
+  ["Chủ đầu tư / Nguồn vốn", "NhaCungCap", "Dùng khi ghi nhận các khoản tạm ứng, thu vào"],
 ];
 
 // ---------------------------------------------------------------
@@ -386,6 +394,7 @@ async function ensureSpreadsheet() {
       state.spreadsheetId = cachedId;
       applySheetIdsFromMeta(meta);
       await migrateLegacyIfNeeded();
+      await migrateNhaThauIfNeeded();
       return;
     } catch (e) {
       // file có thể đã bị xoá / mất quyền -> tìm lại hoặc tạo mới
@@ -405,6 +414,7 @@ async function ensureSpreadsheet() {
     applySheetIdsFromMeta(meta);
     localStorage.setItem(LS_KEYS.SPREADSHEET_ID, id);
     await migrateLegacyIfNeeded();
+    await migrateNhaThauIfNeeded();
     return;
   }
 
@@ -445,7 +455,7 @@ async function seedInitialData() {
       valueInputOption: "USER_ENTERED",
       data: [
         { range: "GiaoDich!A1:I1", values: [["ID", "Ngay", "Loai", "SoTien", "Nhom", "HangMuc", "NhaThauID", "GhiChu", "DuAnID"]] },
-        { range: "NhaThau!A1:C1", values: [["ID", "Ten", "GhiChu"]] },
+        { range: "NhaThau!A1:D1", values: [["ID", "Ten", "Loai", "GhiChu"]] },
         { range: "DanhMuc!A1:E1", values: [["ID", "Nhom", "HangMuc", "Loai", "GhiChu"]] },
         { range: "NganSach!A1:F1", values: [["ID", "DuAnID", "Nhom", "HangMuc", "NganSachDuKien", "GhiChu"]] },
         { range: "DuAn!A1:D1", values: [["ID", "Ten", "GhiChu", "NgayTao"]] },
@@ -453,9 +463,9 @@ async function seedInitialData() {
     }),
   });
 
-  // Nhà thầu / đội thi công mặc định (dùng chung mọi dự án)
-  const nhaThauRows = DEFAULT_NHATHAU.map(([ten, ghiChu]) => [genId(), ten, ghiChu]);
-  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A2:C2:append?valueInputOption=USER_ENTERED`, {
+  // Nhà cung cấp / đội thi công mặc định (dùng chung mọi dự án)
+  const nhaThauRows = DEFAULT_NHATHAU.map(([ten, loai, ghiChu]) => [genId(), ten, loai, ghiChu]);
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A2:D2:append?valueInputOption=USER_ENTERED`, {
     method: "POST",
     body: JSON.stringify({ values: nhaThauRows }),
   });
@@ -593,12 +603,44 @@ async function migrateLegacyIfNeeded() {
 }
 
 // ---------------------------------------------------------------
+// Nâng cấp sheet NhaThau cũ (ID, Tên, Ghi chú - 3 cột) lên schema có
+// thêm cột Loai (ID, Tên, Loai, Ghi chú - 4 cột) để chia 2 danh sách
+// Nhà cung cấp / Đội thi công. An toàn để gọi nhiều lần.
+// ---------------------------------------------------------------
+async function migrateNhaThauIfNeeded() {
+  const header = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A1:D1`);
+  const headerRow = (header.values || [])[0] || [];
+  if (headerRow[2] === "Loai") return; // đã đúng schema mới
+
+  const all = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A1:D10000`);
+  const rows = (all.values || []).slice(1); // bỏ dòng header cũ
+  const newRows = rows.filter((r) => r[0]).map((r) => [r[0], r[1] || "", "", r[2] || ""]);
+
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A1:D10000:clear`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A1:D1?valueInputOption=USER_ENTERED`, {
+    method: "PUT",
+    body: JSON.stringify({ values: [["ID", "Ten", "Loai", "GhiChu"]] }),
+  });
+  if (newRows.length) {
+    await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A2:D2:append?valueInputOption=USER_ENTERED`, {
+      method: "POST",
+      body: JSON.stringify({ values: newRows }),
+    });
+  }
+
+  showToast('Đã thêm phân loại "Nhà cung cấp / Đội thi công" - vào ⚙ Cài đặt, bấm ✎ trên từng đơn vị để chọn đúng loại.', 6000);
+}
+
+// ---------------------------------------------------------------
 // Load all data from the sheet
 // ---------------------------------------------------------------
 async function loadAllData() {
   const ranges = [
     "GiaoDich!A2:I100000",
-    "NhaThau!A2:C10000",
+    "NhaThau!A2:D10000",
     "DanhMuc!A2:E10000",
     "NganSach!A2:F10000",
     "DuAn!A2:D10000",
@@ -626,7 +668,8 @@ async function loadAllData() {
   state.nhaThauList = (nhaThauRange.values || []).map((row, i) => ({
     id: row[0],
     ten: row[1] || "",
-    ghiChu: row[2] || "",
+    loai: row[2] || "",
+    ghiChu: row[3] || "",
     _row: i + 2,
   }));
 
@@ -741,15 +784,17 @@ function nhaThauSpent(duAnId, nhaThauId) {
     .reduce((sum, t) => sum + (t.soTien || 0), 0);
 }
 
-function projectMonthIncomeExpense(duAnId) {
-  const curMonth = monthKey(todayStr());
-  let income = 0, expense = 0;
-  projectTransactions(duAnId).forEach((t) => {
-    if (monthKey(t.ngay) !== curMonth) return;
-    if (t.loai === "Thu") income += t.soTien;
-    else expense += t.soTien;
-  });
-  return { income, expense };
+function totalIncome(duAnId) {
+  return projectTransactions(duAnId)
+    .filter((t) => t.loai === "Thu")
+    .reduce((sum, t) => sum + (t.soTien || 0), 0);
+}
+
+// Nhà cung cấp/Đội thi công đã có ít nhất 1 giao dịch (Thu hoặc Chi)
+// trong dự án này - dùng để chỉ liệt kê đơn vị liên quan, tránh rối.
+function partnersUsedInProject(duAnId) {
+  const usedIds = new Set(projectTransactions(duAnId).map((t) => t.nhaThauId).filter(Boolean));
+  return state.nhaThauList.filter((nt) => usedIds.has(nt.id));
 }
 
 // ---------------------------------------------------------------
@@ -920,27 +965,55 @@ function backToProjectsOverview() {
 // ---------------------------------------------------------------
 // Rendering - Chi tiết 1 dự án (dashboard cũ, nay theo phạm vi dự án)
 // ---------------------------------------------------------------
-function renderNhaThauList() {
+function renderPartnersSection() {
   const duAnId = state.currentProjectId;
-  const list = $("nhaThauList");
-  list.innerHTML = "";
-  state.nhaThauList.forEach((nt) => {
-    const card = document.createElement("div");
-    card.className = "wallet-card";
-    card.innerHTML = `
-      <div class="wallet-card-head">
-        <div class="w-name">${escapeHtml(nt.ten)}</div>
-        <button type="button" class="card-edit-btn" data-edit-nhathau="${nt.id}" title="Sửa nhà thầu">✎</button>
-      </div>
-      <div class="w-balance">Đã chi: ${formatMoney(nhaThauSpent(duAnId, nt.id))}</div>`;
-    list.appendChild(card);
-  });
+  const used = partnersUsedInProject(duAnId);
+  // Đơn vị chưa phân loại (dữ liệu cũ nâng cấp lên) tạm xếp chung với
+  // "Nhà cung cấp" cho tới khi được sửa (✎) sang đúng loại.
+  const nhaCungCap = used.filter((nt) => nt.loai !== NHATHAU_LOAI.DOI_THI_CONG);
+  const doiThiCong = used.filter((nt) => nt.loai === NHATHAU_LOAI.DOI_THI_CONG);
 
-  const select = $("txNhaThau");
+  const renderPartnerGroup = (title, items) => {
+    if (items.length === 0) return "";
+    const rows = items
+      .map(
+        (nt) => `
+        <div class="partner-item">
+          <div class="partner-item-main">
+            <span class="partner-item-name">${escapeHtml(nt.ten)}</span>
+            <button type="button" class="card-edit-btn" data-edit-nhathau="${nt.id}" title="Sửa">✎</button>
+          </div>
+          <div class="partner-item-amount">Đã chi: ${formatMoney(nhaThauSpent(duAnId, nt.id))}</div>
+        </div>`
+      )
+      .join("");
+    return `<div class="partner-group"><div class="partner-group-title">${escapeHtml(title)}</div><div class="partner-group-list">${rows}</div></div>`;
+  };
+
+  const groupsHtml = renderPartnerGroup(NHATHAU_LOAI_LABEL.NhaCungCap, nhaCungCap) + renderPartnerGroup(NHATHAU_LOAI_LABEL.DoiThiCong, doiThiCong);
+  $("nhaThauList").innerHTML =
+    groupsHtml || `<p class="empty-hint">Dự án này chưa có giao dịch nào gắn với nhà cung cấp/đội thi công.</p>`;
+
+  // Ô chọn khi thêm giao dịch: LUÔN hiện toàn bộ danh sách dùng chung
+  // (kể cả đơn vị chưa từng phát sinh trong dự án này), chia theo nhóm.
+  const optGroup = (label, items) =>
+    items.length
+      ? `<optgroup label="${escapeHtml(label)}">${items
+          .map((nt) => `<option value="${nt.id}">${escapeHtml(nt.ten)}</option>`)
+          .join("")}</optgroup>`
+      : "";
+  const allNhaCungCap = state.nhaThauList.filter((nt) => nt.loai !== NHATHAU_LOAI.DOI_THI_CONG);
+  const allDoiThiCong = state.nhaThauList.filter((nt) => nt.loai === NHATHAU_LOAI.DOI_THI_CONG);
+  $("txNhaThau").innerHTML =
+    optGroup(NHATHAU_LOAI_LABEL.NhaCungCap, allNhaCungCap) + optGroup(NHATHAU_LOAI_LABEL.DoiThiCong, allDoiThiCong);
+
+  // Bộ lọc bên phải: chỉ hiện đơn vị đã phát sinh giao dịch trong dự án này.
   const filterSelect = $("filterNhaThau");
-  const options = state.nhaThauList.map((nt) => `<option value="${nt.id}">${escapeHtml(nt.ten)}</option>`).join("");
-  select.innerHTML = options;
-  filterSelect.innerHTML = `<option value="">Tất cả nhà thầu</option>` + options;
+  const prevFilterValue = filterSelect.value;
+  const usedIdsSet = new Set(used.map((nt) => nt.id));
+  filterSelect.innerHTML =
+    `<option value="">Tất cả</option>` + optGroup(NHATHAU_LOAI_LABEL.NhaCungCap, nhaCungCap) + optGroup(NHATHAU_LOAI_LABEL.DoiThiCong, doiThiCong);
+  filterSelect.value = prevFilterValue === "" || usedIdsSet.has(prevFilterValue) ? prevFilterValue : "";
 }
 
 function renderGroupOptions(type) {
@@ -963,31 +1036,26 @@ function renderMonthFilterOptions() {
   const select = $("filterMonth");
   const prevValue = select.value;
   const months = new Set(projectTransactions(state.currentProjectId).map((t) => monthKey(t.ngay)));
-  months.add(monthKey(todayStr()));
   const sorted = [...months].filter(Boolean).sort().reverse();
-  select.innerHTML = sorted
-    .map((m) => `<option value="${m}">Tháng ${m.slice(5, 7)}/${m.slice(0, 4)}</option>`)
-    .join("");
-  select.value = sorted.includes(prevValue) ? prevValue : monthKey(todayStr());
+  select.innerHTML =
+    `<option value="">Tất cả</option>` +
+    sorted.map((m) => `<option value="${m}">Tháng ${m.slice(5, 7)}/${m.slice(0, 4)}</option>`).join("");
+  select.value = prevValue === "" || sorted.includes(prevValue) ? prevValue : "";
 }
 
 function renderSummary() {
   const duAnId = state.currentProjectId;
-  const budget = totalBudget(duAnId);
+  const income = totalIncome(duAnId);
   const spent = totalSpent(duAnId);
-  const remaining = budget - spent;
+  const remaining = income - spent;
 
-  $("totalBudget").textContent = formatMoney(budget);
+  $("totalBudget").textContent = formatMoney(income);
   $("totalSpent").textContent = formatMoney(spent);
 
   const remainingEl = $("totalRemaining");
   remainingEl.textContent = formatMoney(Math.abs(remaining));
   remainingEl.classList.toggle("over-budget", remaining < 0);
-  $("remainingLabel").textContent = remaining < 0 ? "Vượt ngân sách" : "Còn lại so với ngân sách";
-
-  const { income, expense } = projectMonthIncomeExpense(duAnId);
-  $("monthIncome").textContent = formatMoney(income);
-  $("monthExpense").textContent = formatMoney(expense);
+  $("remainingLabel").textContent = remaining < 0 ? "Chi vượt thu" : "Còn lại";
 }
 
 function renderBudgetList() {
@@ -1058,7 +1126,7 @@ function renderTransactions() {
 }
 
 function renderProjectDetail() {
-  renderNhaThauList();
+  renderPartnersSection();
   renderNhomDatalist();
   renderMonthFilterOptions();
   renderSummary();
@@ -1191,7 +1259,7 @@ async function submitTransactionForm(evt) {
     return;
   }
   if (!tx.nhaThauId) {
-    showToast("Vui lòng chọn Nhà thầu / Đội thi công");
+    showToast("Vui lòng chọn Nhà cung cấp / Đội thi công");
     return;
   }
 
@@ -1298,38 +1366,38 @@ async function flushQueue() {
 }
 
 // ---------------------------------------------------------------
-// Nhà thầu / danh mục mới (dùng chung mọi dự án)
+// Nhà cung cấp / Đội thi công / danh mục mới (dùng chung mọi dự án)
 // ---------------------------------------------------------------
-async function addNhaThau(name, note) {
+async function addNhaThau(name, loai, note) {
   if (!navigator.onLine) {
-    showToast("Cần có mạng để thêm nhà thầu mới.");
+    showToast("Cần có mạng để thêm mới.");
     return;
   }
   const id = genId();
-  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A2:C2:append?valueInputOption=USER_ENTERED`, {
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A2:D2:append?valueInputOption=USER_ENTERED`, {
     method: "POST",
-    body: JSON.stringify({ values: [[id, name, note || ""]] }),
+    body: JSON.stringify({ values: [[id, name, loai, note || ""]] }),
   });
   await loadAllData();
   renderCurrentScreen();
   showToast("Đã thêm: " + name);
 }
 
-async function updateNhaThau(id, name, note) {
+async function updateNhaThau(id, name, loai, note) {
   if (!navigator.onLine) {
-    showToast("Cần có mạng để sửa nhà thầu.");
+    showToast("Cần có mạng để sửa.");
     return;
   }
   const nt = state.nhaThauList.find((n) => n.id === id);
   if (!nt) {
-    showToast("Không tìm thấy nhà thầu này.");
+    showToast("Không tìm thấy đơn vị này.");
     return;
   }
   await apiFetch(
-    `${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A${nt._row}:C${nt._row}?valueInputOption=USER_ENTERED`,
+    `${SHEETS_API}/${state.spreadsheetId}/values/NhaThau!A${nt._row}:D${nt._row}?valueInputOption=USER_ENTERED`,
     {
       method: "PUT",
-      body: JSON.stringify({ values: [[nt.id, name, note || ""]] }),
+      body: JSON.stringify({ values: [[nt.id, name, loai, note || ""]] }),
     }
   );
   await loadAllData();
@@ -1337,10 +1405,18 @@ async function updateNhaThau(id, name, note) {
   showToast("Đã cập nhật: " + name);
 }
 
+function setNhaThauLoaiUI(loai) {
+  $("nhaThauLoai").value = loai;
+  document.querySelectorAll(".nhathau-loai-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.loai === loai);
+  });
+}
+
 function resetNhaThauFormToAddMode() {
   $("newNhaThauForm").reset();
   $("editNhaThauId").value = "";
-  $("nhaThauFormHeading").textContent = "Thêm nhà thầu / đội thi công mới";
+  setNhaThauLoaiUI(NHATHAU_LOAI.NHA_CUNG_CAP);
+  $("nhaThauFormHeading").textContent = "Thêm nhà cung cấp / đội thi công mới";
   $("nhaThauSubmitBtn").textContent = "Thêm";
   $("nhaThauCancelEditBtn").classList.add("hidden");
 }
@@ -1352,7 +1428,8 @@ function openEditNhaThauModal(id) {
   $("editNhaThauId").value = nt.id;
   $("newNhaThauName").value = nt.ten;
   $("newNhaThauNote").value = nt.ghiChu || "";
-  $("nhaThauFormHeading").textContent = "Sửa nhà thầu / đội thi công";
+  setNhaThauLoaiUI(nt.loai === NHATHAU_LOAI.DOI_THI_CONG ? NHATHAU_LOAI.DOI_THI_CONG : NHATHAU_LOAI.NHA_CUNG_CAP);
+  $("nhaThauFormHeading").textContent = "Sửa nhà cung cấp / đội thi công";
   $("nhaThauSubmitBtn").textContent = "Lưu thay đổi";
   $("nhaThauCancelEditBtn").classList.remove("hidden");
 }
@@ -1588,19 +1665,24 @@ function wireEvents() {
     }
   });
 
+  document.querySelectorAll(".nhathau-loai-btn").forEach((btn) => {
+    btn.addEventListener("click", () => setNhaThauLoaiUI(btn.dataset.loai));
+  });
+
   $("newNhaThauForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const editId = $("editNhaThauId").value;
     const name = $("newNhaThauName").value.trim();
+    const loai = $("nhaThauLoai").value || NHATHAU_LOAI.NHA_CUNG_CAP;
     const note = $("newNhaThauNote").value.trim();
     if (!name) return;
     try {
       if (editId) {
-        await updateNhaThau(editId, name, note);
+        await updateNhaThau(editId, name, loai, note);
         resetNhaThauFormToAddMode();
       } else {
-        await addNhaThau(name, note);
-        $("newNhaThauForm").reset();
+        await addNhaThau(name, loai, note);
+        resetNhaThauFormToAddMode();
       }
     } catch (err) {
       showToast("Lỗi: " + err.message);

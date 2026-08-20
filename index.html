@@ -35,7 +35,7 @@
     </div>
     <div class="topbar-actions">
       <span id="syncStatus" class="sync-badge" title="Trạng thái đồng bộ">●</span>
-      <button id="settingsBtn" class="icon-btn" title="Cài đặt Nhà thầu / Danh mục">⚙</button>
+      <button id="settingsBtn" class="icon-btn" title="Cài đặt Nhà cung cấp / Danh mục">⚙</button>
       <button id="logoutBtn" class="icon-btn" title="Đăng xuất">⏻</button>
     </div>
   </header>
@@ -56,30 +56,20 @@
   <!-- ===================== MÀN HÌNH CHI TIẾT 1 DỰ ÁN ===================== -->
   <section id="appScreen" class="screen-body hidden">
     <main class="content">
-      <!-- Tổng quan ngân sách -->
+      <!-- Tổng quan thu chi -->
       <section class="summary-card">
         <div class="summary-total">
-          <span class="summary-label" id="remainingLabel">Còn lại so với ngân sách</span>
+          <span class="summary-label" id="remainingLabel">Còn lại</span>
           <span id="totalRemaining" class="summary-value">0 ₫</span>
         </div>
         <div class="summary-row">
           <div class="summary-mini budget">
-            <span>Ngân sách dự kiến</span>
+            <span>Tổng thu</span>
             <strong id="totalBudget">0 ₫</strong>
           </div>
           <div class="summary-mini expense">
             <span>Đã chi</span>
             <strong id="totalSpent">0 ₫</strong>
-          </div>
-        </div>
-        <div class="summary-row">
-          <div class="summary-mini income">
-            <span>Thu tháng này</span>
-            <strong id="monthIncome">0 ₫</strong>
-          </div>
-          <div class="summary-mini expense">
-            <span>Chi tháng này</span>
-            <strong id="monthExpense">0 ₫</strong>
           </div>
         </div>
       </section>
@@ -92,20 +82,20 @@
         <div id="budgetList" class="budget-list"></div>
       </section>
 
-      <!-- Danh sách nhà thầu / đội thi công -->
+      <!-- Danh sách nhà cung cấp / đội thi công -->
       <section class="wallets-section">
         <div class="section-header">
-          <h2>Nhà thầu / Đội thi công</h2>
+          <h2>Nhà cung cấp / Đội thi công</h2>
           <button id="addNhaThauBtn" class="link-btn">+ Thêm</button>
         </div>
-        <div id="nhaThauList" class="wallet-list"></div>
+        <div id="nhaThauList" class="partner-groups"></div>
       </section>
 
       <!-- Bộ lọc -->
       <section class="filter-row">
         <select id="filterMonth"></select>
         <select id="filterNhaThau">
-          <option value="">Tất cả nhà thầu</option>
+          <option value="">Tất cả</option>
         </select>
       </section>
 
@@ -182,7 +172,7 @@
         </label>
 
         <label class="field">
-          <span>Nhà thầu / Đội thi công</span>
+          <span>Nhà cung cấp / Đội thi công</span>
           <select id="txNhaThau" required></select>
         </label>
 
@@ -218,10 +208,15 @@
           </form>
         </div>
         <div class="settings-block">
-          <h4 id="nhaThauFormHeading">Thêm nhà thầu / đội thi công mới</h4>
-          <p class="fine-print">Danh sách nhà thầu dùng chung cho tất cả dự án. Bấm ✎ trên thẻ nhà thầu ở màn hình dự án để sửa.</p>
+          <h4 id="nhaThauFormHeading">Thêm nhà cung cấp / đội thi công mới</h4>
+          <p class="fine-print">Danh sách dùng chung cho tất cả dự án. Bấm ✎ trên thẻ ở màn hình dự án để sửa.</p>
           <form id="newNhaThauForm" class="inline-form">
             <input type="hidden" id="editNhaThauId" />
+            <div class="type-toggle small">
+              <button type="button" class="type-btn nhathau-loai-btn active" data-loai="NhaCungCap">Nhà cung cấp</button>
+              <button type="button" class="type-btn nhathau-loai-btn" data-loai="DoiThiCong">Đội thi công</button>
+            </div>
+            <input type="hidden" id="nhaThauLoai" value="NhaCungCap" />
             <input type="text" id="newNhaThauName" placeholder="Tên, VD: Đội điện nước" required maxlength="60" />
             <input type="text" id="newNhaThauNote" placeholder="Ghi chú (không bắt buộc)" maxlength="120" />
             <button type="submit" id="nhaThauSubmitBtn" class="btn btn-secondary">Thêm</button>
