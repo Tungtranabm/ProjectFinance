@@ -1,6 +1,6 @@
 # Project Finance — PWA theo dõi thu chi nhiều dự án, lưu trên Google Sheets
 
-**Phiên bản hiện tại: Ver 1.06** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
+**Phiên bản hiện tại: Ver 1.07** (xem chi tiết từng lần cập nhật trong `CHANGELOG.md`)
 
 Ứng dụng web (PWA) chạy hoàn toàn ở phía trình duyệt — không có server riêng.
 Khi bạn đăng nhập bằng Google, app sẽ tự tạo (hoặc tìm lại) **một file
@@ -175,7 +175,8 @@ Lưu file lại.
 ## Cách hoạt động / giới hạn cần biết
 
 - **Lưu trữ:** 5 sheet trong 1 file —
-  - `DuAn` (danh sách dự án): ID, Tên, Ghi chú, Ngày tạo.
+  - `DuAn` (danh sách dự án): ID, Tên, Ghi chú, Ngày tạo, **HoanTat**
+    (`TRUE` nếu dự án đã đánh dấu hoàn tất, để trống nếu chưa).
   - `GiaoDich` (giao dịch): ID, Ngày, Loại (Thu/Chi), Số tiền, Nhóm, Hạng
     mục, NhaThauID, Ghi chú, **DuAnID** (dự án nào).
   - `NhaThau` (Nhà cung cấp/Đội thi công — dùng chung mọi dự án): ID,
@@ -185,11 +186,23 @@ Lưu file lại.
   - `NganSach` (ngân sách dự kiến, riêng theo từng dự án): ID, **DuAnID**,
     Nhóm, Hạng mục, Ngân sách dự kiến, Ghi chú.
 - **Nhiều dự án:** Màn hình "Dự án của bạn" là màn hình chính sau khi
-  đăng nhập, liệt kê tất cả dự án kèm Ngân sách/Đã chi/Còn lại tổng của
-  từng dự án. Mở 1 dự án để vào dashboard chi tiết (y hệt bản trước, nay
-  chỉ lọc theo đúng dự án đó); bấm nút "←" ở góc trên để quay lại danh
-  sách dự án. Nhóm/Hạng mục và danh sách Nhà cung cấp/Đội thi công dùng
-  chung cho mọi dự án, còn Ngân sách dự kiến đặt riêng theo từng dự án.
+  đăng nhập, liệt kê tất cả dự án kèm Tổng thu/Đã chi/Còn lại (hoặc "Chi
+  vượt thu" nếu chi nhiều hơn thu) của từng dự án, cùng **Ngày bắt đầu**
+  (ngày sớm nhất có giao dịch), **Ngày kết thúc** (ngày muộn nhất có giao
+  dịch) và **Tổng số ngày** (tính cả ngày đầu, ngày cuối) — dự án chưa có
+  giao dịch nào thì 2 mốc ngày hiện "—". Mở 1 dự án để vào dashboard chi
+  tiết (chỉ lọc theo đúng dự án đó); bấm nút "←" ở góc trên để quay lại
+  danh sách dự án. Nhóm/Hạng mục và danh sách Nhà cung cấp/Đội thi công
+  dùng chung cho mọi dự án, còn Ngân sách dự kiến đặt riêng theo từng dự
+  án.
+- **Đánh dấu dự án "Hoàn tất":** mỗi thẻ dự án (màn hình "Dự án của bạn")
+  có ô chọn **Hoàn tất** ngay trên thẻ, không cần vào sửa dự án. Bấm chọn
+  khi công trình đã xong: dự án tự xếp xuống **cuối danh sách**, thẻ hiển
+  thị mờ đi, và bên trong dự án đó nút "+" thêm giao dịch bị ẩn — mọi thao
+  tác thêm/sửa/xoá giao dịch hoặc thêm/sửa ngân sách của dự án đó đều bị
+  chặn (kèm thông báo), dữ liệu cũ vẫn xem lại bình thường. Tên/ghi chú
+  của dự án vẫn sửa được như trước (bấm ✎) vì không phải "dữ liệu bên
+  trong". Có thể bỏ đánh dấu bất cứ lúc nào để mở lại việc thêm/sửa.
 - **Sửa tên dự án / Nhà cung cấp / Đội thi công:** bấm biểu tượng ✎ trên
   thẻ dự án (màn hình "Dự án của bạn") hoặc trên từng đơn vị (mục "Nhà
   cung cấp / Đội thi công" trong 1 dự án) để đổi tên/loại/ghi chú. **Xoá**
@@ -216,18 +229,24 @@ Lưu file lại.
   đã thanh toán cho ai bao nhiêu. Khi thêm mới ở ⚙ Cài đặt, chọn đơn vị
   đó là **Nhà cung cấp** (vật tư, vật liệu, cửa hàng...) hay **Đội thi
   công** — 2 loại lưu tách riêng. Mục "Nhà cung cấp / Đội thi công" trên
-  dashboard hiển thị dạng danh sách, chia 2 nhóm, và **chỉ liệt kê những
-  đơn vị đã thật sự phát sinh giao dịch trong dự án đang xem** (để đỡ rối
-  khi bạn có nhiều dự án dùng chung 1 danh sách) — khi thêm giao dịch mới
-  thì dropdown chọn đơn vị vẫn hiện đầy đủ toàn bộ danh sách dùng chung,
-  kể cả đơn vị chưa từng dùng ở dự án này. Với các khoản Thu (VD: tạm ứng
-  từ chủ đầu tư), bạn có thể chọn đơn vị mẫu "Chủ đầu tư / Nguồn vốn" hoặc
-  tự thêm nguồn khác.
+  dashboard hiển thị dạng danh sách **2 cột song song** (Nhà cung cấp bên
+  trái, Đội thi công bên phải), và **chỉ liệt kê những đơn vị đã thật sự
+  phát sinh giao dịch trong dự án đang xem** (để đỡ rối khi bạn có nhiều
+  dự án dùng chung 1 danh sách), **sắp xếp theo tổng đã chi từ nhiều đến
+  ít** — mỗi cột hiện tối đa 5 đơn vị, nhiều hơn thì tự chuyển sang dạng
+  cuộn (scroll) bên trong cột đó. Khi thêm giao dịch mới thì dropdown chọn
+  đơn vị vẫn hiện đầy đủ toàn bộ danh sách dùng chung, kể cả đơn vị chưa
+  từng dùng ở dự án này. Với các khoản Thu (VD: tạm ứng từ chủ đầu tư),
+  bạn có thể chọn đơn vị mẫu "Chủ đầu tư / Nguồn vốn" hoặc tự thêm nguồn
+  khác.
 - **Ngoại tuyến:** Thêm giao dịch mới vẫn hoạt động khi mất mạng — được
   lưu tạm trên máy và tự đồng bộ lên Sheet khi có mạng lại (xem huy hiệu
   chấm tròn ở góc trên: xanh = đã đồng bộ, vàng = đang chờ, xám = ngoại
   tuyến). **Sửa/xoá** giao dịch, thêm Nhà cung cấp/Đội thi công/Nhóm/Hạng
   mục mới cần có mạng để tránh xung đột dữ liệu.
+- **Đang dùng bản trước 1.07?** Không cần làm gì thêm — lần đăng nhập đầu
+  tiên trên bản 1.07, app tự thêm cột `HoanTat` vào sheet `DuAn`. Toàn bộ
+  dự án hiện có mặc định là **chưa hoàn tất**, không mất dữ liệu.
 - **Đang dùng bản trước 1.06?** Không cần làm gì thêm — lần đăng nhập đầu
   tiên trên bản 1.06, app tự thêm cột phân loại vào sheet `NhaThau`. Các
   đơn vị đã có sẵn từ trước sẽ tạm thời được xếp vào nhóm "Nhà cung cấp"

@@ -2,6 +2,32 @@
 
 Ghi lại các thay đổi qua từng phiên bản để tiện theo dõi.
 
+## Ver 1.07 — 2026-08-21
+- **Thẻ dự án (trang "Dự án của bạn") thêm thống kê ngày:** ngang hàng với
+  Tổng thu/Đã chi/Còn lại, mỗi thẻ dự án nay hiện thêm **Ngày bắt đầu**
+  (ngày sớm nhất có giao dịch), **Ngày kết thúc** (ngày muộn nhất có giao
+  dịch) và **Tổng số ngày** (tính cả ngày đầu và ngày cuối). Dự án chưa có
+  giao dịch nào thì 2 mốc ngày hiện "—".
+- **Đánh dấu dự án "Hoàn tất":** mỗi thẻ dự án có ô chọn "Hoàn tất" ngay
+  trên trang tổng quan (không cần vào sửa dự án). Khi bấm chọn:
+  - Dự án tự động **xếp xuống cuối danh sách** (các dự án chưa hoàn tất
+    vẫn giữ nguyên thứ tự cũ với nhau).
+  - Thẻ dự án hiển thị mờ đi để dễ phân biệt.
+  - Vào bên trong dự án đó, nút "+" thêm giao dịch bị ẩn, và mọi thao tác
+    thêm/sửa/xoá giao dịch hoặc thêm/sửa ngân sách đều bị chặn kèm thông
+    báo "Dự án đã hoàn tất..." — dữ liệu cũ của dự án vẫn xem được bình
+    thường, chỉ không sửa/thêm mới được nữa. Tên và ghi chú của dự án vẫn
+    sửa được như trước (bấm ✎) vì đây không phải là "dữ liệu bên trong".
+  - Có thể bỏ đánh dấu hoàn tất bất cứ lúc nào để mở lại việc thêm/sửa.
+  - File Sheet cũ tự động thêm cột `HoanTat` vào sheet `DuAn` ở lần đăng
+    nhập đầu tiên trên bản này; toàn bộ dự án hiện có mặc định là **chưa
+    hoàn tất**, không mất dữ liệu.
+- **Mục "Nhà cung cấp / Đội thi công" trong dashboard đổi bố cục thành 2
+  cột song song** (Nhà cung cấp bên trái, Đội thi công bên phải) thay vì
+  xếp chồng lên nhau. Mỗi cột **sắp xếp theo tổng đã chi từ nhiều đến
+  ít**, và nếu 1 cột có hơn 5 đơn vị thì tự chuyển sang dạng cuộn (scroll)
+  bên trong thay vì kéo dài trang.
+
 ## Ver 1.06 — 2026-08-20
 - **Thẻ tổng quan dự án đổi trọng tâm sang thu/chi thực tế** thay vì
   ngân sách: "Ngân sách dự kiến" đổi thành **"Tổng thu"** (tổng các khoản

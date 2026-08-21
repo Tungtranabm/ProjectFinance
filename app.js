@@ -395,6 +395,7 @@ async function ensureSpreadsheet() {
       applySheetIdsFromMeta(meta);
       await migrateLegacyIfNeeded();
       await migrateNhaThauIfNeeded();
+      await ensureDuAnHoanTatColumn();
       return;
     } catch (e) {
       // file có thể đã bị xoá / mất quyền -> tìm lại hoặc tạo mới
@@ -415,6 +416,7 @@ async function ensureSpreadsheet() {
     localStorage.setItem(LS_KEYS.SPREADSHEET_ID, id);
     await migrateLegacyIfNeeded();
     await migrateNhaThauIfNeeded();
+    await ensureDuAnHoanTatColumn();
     return;
   }
 
@@ -458,7 +460,7 @@ async function seedInitialData() {
         { range: "NhaThau!A1:D1", values: [["ID", "Ten", "Loai", "GhiChu"]] },
         { range: "DanhMuc!A1:E1", values: [["ID", "Nhom", "HangMuc", "Loai", "GhiChu"]] },
         { range: "NganSach!A1:F1", values: [["ID", "DuAnID", "Nhom", "HangMuc", "NganSachDuKien", "GhiChu"]] },
-        { range: "DuAn!A1:D1", values: [["ID", "Ten", "GhiChu", "NgayTao"]] },
+        { range: "DuAn!A1:E1", values: [["ID", "Ten", "GhiChu", "NgayTao", "HoanTat"]] },
       ],
     }),
   });
@@ -635,6 +637,22 @@ async function migrateNhaThauIfNeeded() {
 }
 
 // ---------------------------------------------------------------
+// Nâng cấp sheet DuAn cũ (4 cột) lên schema có thêm cột HoanTat
+// (đánh dấu dự án đã hoàn tất). An toàn để gọi nhiều lần, không
+// đụng tới dữ liệu dự án hiện có.
+// ---------------------------------------------------------------
+async function ensureDuAnHoanTatColumn() {
+  const header = await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A1:E1`);
+  const headerRow = (header.values || [])[0] || [];
+  if (headerRow[4] === "HoanTat") return; // đã đúng schema mới
+
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DuAn!E1?valueInputOption=USER_ENTERED`, {
+    method: "PUT",
+    body: JSON.stringify({ values: [["HoanTat"]] }),
+  });
+}
+
+// ---------------------------------------------------------------
 // Load all data from the sheet
 // ---------------------------------------------------------------
 async function loadAllData() {
@@ -643,7 +661,7 @@ async function loadAllData() {
     "NhaThau!A2:D10000",
     "DanhMuc!A2:E10000",
     "NganSach!A2:F10000",
-    "DuAn!A2:D10000",
+    "DuAn!A2:E10000",
   ]
     .map((r) => "ranges=" + encodeURIComponent(r))
     .join("&");
@@ -697,6 +715,7 @@ async function loadAllData() {
     ten: row[1] || "",
     ghiChu: row[2] || "",
     ngayTao: row[3] || "",
+    hoanTat: row[4] === "TRUE",
     _row: i + 2,
   }));
 
@@ -797,6 +816,31 @@ function partnersUsedInProject(duAnId) {
   return state.nhaThauList.filter((nt) => usedIds.has(nt.id));
 }
 
+function isProjectComplete(duAnId) {
+  const p = state.projects.find((pr) => pr.id === duAnId);
+  return !!(p && p.hoanTat);
+}
+
+function formatDateVN(dateStr) {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// Ngày bắt đầu/kết thúc = ngày sớm nhất/muộn nhất trong các giao dịch của
+// dự án; Tổng số ngày tính bao gồm cả ngày đầu và ngày cuối.
+function projectDateRange(duAnId) {
+  const dates = projectTransactions(duAnId)
+    .map((t) => t.ngay)
+    .filter(Boolean)
+    .sort();
+  if (dates.length === 0) return { start: null, end: null, days: null };
+  const start = dates[0];
+  const end = dates[dates.length - 1];
+  const days = Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
+  return { start, end, days };
+}
+
 // ---------------------------------------------------------------
 // Rendering - chung
 // ---------------------------------------------------------------
@@ -848,14 +892,24 @@ function renderProjectsOverview() {
     renderPendingInfo();
     return;
   }
-  list.innerHTML = state.projects
+  const sorted = state.projects
+    .map((p, idx) => ({ p, idx }))
+    .sort((a, b) => {
+      const ac = !!a.p.hoanTat;
+      const bc = !!b.p.hoanTat;
+      if (ac === bc) return a.idx - b.idx;
+      return ac ? 1 : -1;
+    })
+    .map((x) => x.p);
+  list.innerHTML = sorted
     .map((p) => {
-      const budget = totalBudget(p.id);
+      const income = totalIncome(p.id);
       const spent = totalSpent(p.id);
-      const remaining = budget - spent;
+      const remaining = income - spent;
       const overBudget = remaining < 0;
+      const range = projectDateRange(p.id);
       return `
-        <div class="project-card" data-id="${p.id}">
+        <div class="project-card${p.hoanTat ? " is-complete" : ""}" data-id="${p.id}">
           <div class="project-card-head">
             <span class="project-card-name">${escapeHtml(p.ten)}</span>
             <div class="project-card-actions">
@@ -864,18 +918,40 @@ function renderProjectsOverview() {
             </div>
           </div>
           ${p.ghiChu ? `<div class="project-card-note">${escapeHtml(p.ghiChu)}</div>` : ""}
-          <div class="project-card-stats">
-            <div class="project-stat">
-              <span>Ngân sách</span>
-              <strong>${formatMoney(budget)}</strong>
+          <div class="project-card-body">
+            <div class="project-card-stats">
+              <div class="project-stat">
+                <span>Tổng Thu</span>
+                <strong>${formatMoney(income)}</strong>
+              </div>
+              <div class="project-stat expense">
+                <span>Đã chi</span>
+                <strong>${formatMoney(spent)}</strong>
+              </div>
+              <div class="project-stat remaining">
+                <span>${overBudget ? "Chi vượt thu" : "Còn lại"}</span>
+                <strong class="${overBudget ? "over-budget" : ""}">${formatMoney(Math.abs(remaining))}</strong>
+              </div>
             </div>
-            <div class="project-stat expense">
-              <span>Đã chi</span>
-              <strong>${formatMoney(spent)}</strong>
-            </div>
-            <div class="project-stat remaining">
-              <span>${overBudget ? "Vượt ngân sách" : "Còn lại"}</span>
-              <strong class="${overBudget ? "over-budget" : ""}">${formatMoney(Math.abs(remaining))}</strong>
+            <div class="project-card-side">
+              <label class="complete-toggle">
+                <input type="checkbox" data-toggle-complete="${p.id}" ${p.hoanTat ? "checked" : ""}>
+                Hoàn tất
+              </label>
+              <div class="project-date-stats">
+                <div class="project-stat">
+                  <span>Ngày bắt đầu</span>
+                  <strong>${formatDateVN(range.start)}</strong>
+                </div>
+                <div class="project-stat">
+                  <span>Ngày kết thúc</span>
+                  <strong>${formatDateVN(range.end)}</strong>
+                </div>
+                <div class="project-stat">
+                  <span>Tổng số ngày</span>
+                  <strong>${range.days != null ? range.days : "—"}</strong>
+                </div>
+              </div>
             </div>
           </div>
         </div>`;
@@ -890,9 +966,9 @@ async function addProject(name, note) {
     throw new Error("offline");
   }
   const id = genId();
-  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A2:D2:append?valueInputOption=USER_ENTERED`, {
+  await apiFetch(`${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A2:E2:append?valueInputOption=USER_ENTERED`, {
     method: "POST",
-    body: JSON.stringify({ values: [[id, name, note || "", todayStr()]] }),
+    body: JSON.stringify({ values: [[id, name, note || "", todayStr(), ""]] }),
   });
   await loadAllData();
   return id;
@@ -909,10 +985,10 @@ async function updateProject(id, name, note) {
     throw new Error("not found");
   }
   await apiFetch(
-    `${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A${p._row}:D${p._row}?valueInputOption=USER_ENTERED`,
+    `${SHEETS_API}/${state.spreadsheetId}/values/DuAn!A${p._row}:E${p._row}?valueInputOption=USER_ENTERED`,
     {
       method: "PUT",
-      body: JSON.stringify({ values: [[p.id, name, note || "", p.ngayTao]] }),
+      body: JSON.stringify({ values: [[p.id, name, note || "", p.ngayTao, p.hoanTat ? "TRUE" : ""]] }),
     }
   );
   await loadAllData();
@@ -920,6 +996,32 @@ async function updateProject(id, name, note) {
     $("headerTitle").textContent = name;
   }
   showToast("Đã cập nhật dự án: " + name);
+}
+
+async function toggleProjectComplete(id) {
+  if (!navigator.onLine) {
+    showToast("Cần có mạng để cập nhật trạng thái dự án.");
+    renderProjectsOverview();
+    return;
+  }
+  const p = state.projects.find((pr) => pr.id === id);
+  if (!p) return;
+  const newVal = !p.hoanTat;
+  await apiFetch(
+    `${SHEETS_API}/${state.spreadsheetId}/values/DuAn!E${p._row}?valueInputOption=USER_ENTERED`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ values: [[newVal ? "TRUE" : ""]] }),
+    }
+  );
+  await loadAllData();
+  renderProjectsOverview();
+  if (state.currentProjectId === id) {
+    renderProjectDetail();
+    const cur = state.projects.find((pr) => pr.id === id);
+    $("headerTitle").textContent = cur.hoanTat ? `${cur.ten} (Đã hoàn tất)` : cur.ten;
+  }
+  showToast(newVal ? `Đã đánh dấu "${p.ten}" hoàn tất. Không thể thêm/sửa dữ liệu bên trong nữa.` : `Đã bỏ đánh dấu hoàn tất "${p.ten}".`);
 }
 
 function openAddProjectModal() {
@@ -948,7 +1050,7 @@ function openProject(id) {
     return;
   }
   state.currentProjectId = id;
-  $("headerTitle").textContent = p.ten;
+  $("headerTitle").textContent = p.hoanTat ? `${p.ten} (Đã hoàn tất)` : p.ten;
   $("backToProjectsBtn").classList.remove("hidden");
   showScreen("app");
   renderProjectDetail();
@@ -968,13 +1070,13 @@ function backToProjectsOverview() {
 function renderPartnersSection() {
   const duAnId = state.currentProjectId;
   const used = partnersUsedInProject(duAnId);
+  const byAmountDesc = (a, b) => nhaThauSpent(duAnId, b.id) - nhaThauSpent(duAnId, a.id);
   // Đơn vị chưa phân loại (dữ liệu cũ nâng cấp lên) tạm xếp chung với
   // "Nhà cung cấp" cho tới khi được sửa (✎) sang đúng loại.
-  const nhaCungCap = used.filter((nt) => nt.loai !== NHATHAU_LOAI.DOI_THI_CONG);
-  const doiThiCong = used.filter((nt) => nt.loai === NHATHAU_LOAI.DOI_THI_CONG);
+  const nhaCungCap = used.filter((nt) => nt.loai !== NHATHAU_LOAI.DOI_THI_CONG).sort(byAmountDesc);
+  const doiThiCong = used.filter((nt) => nt.loai === NHATHAU_LOAI.DOI_THI_CONG).sort(byAmountDesc);
 
-  const renderPartnerGroup = (title, items) => {
-    if (items.length === 0) return "";
+  const renderPartnerColumn = (title, items) => {
     const rows = items
       .map(
         (nt) => `
@@ -987,12 +1089,13 @@ function renderPartnersSection() {
         </div>`
       )
       .join("");
-    return `<div class="partner-group"><div class="partner-group-title">${escapeHtml(title)}</div><div class="partner-group-list">${rows}</div></div>`;
+    const listHtml = items.length
+      ? rows
+      : `<p class="empty-hint small">Chưa có đơn vị nào.</p>`;
+    return `<div class="partner-column"><div class="partner-group-title">${escapeHtml(title)}</div><div class="partner-group-list${items.length > 5 ? " scrollable" : ""}">${listHtml}</div></div>`;
   };
 
-  const groupsHtml = renderPartnerGroup(NHATHAU_LOAI_LABEL.NhaCungCap, nhaCungCap) + renderPartnerGroup(NHATHAU_LOAI_LABEL.DoiThiCong, doiThiCong);
-  $("nhaThauList").innerHTML =
-    groupsHtml || `<p class="empty-hint">Dự án này chưa có giao dịch nào gắn với nhà cung cấp/đội thi công.</p>`;
+  $("nhaThauList").innerHTML = `<div class="partner-groups-row">${renderPartnerColumn(NHATHAU_LOAI_LABEL.NhaCungCap, nhaCungCap)}${renderPartnerColumn(NHATHAU_LOAI_LABEL.DoiThiCong, doiThiCong)}</div>`;
 
   // Ô chọn khi thêm giao dịch: LUÔN hiện toàn bộ danh sách dùng chung
   // (kể cả đơn vị chưa từng phát sinh trong dự án này), chia theo nhóm.
@@ -1133,6 +1236,8 @@ function renderProjectDetail() {
   renderBudgetList();
   renderTransactions();
   renderPendingInfo();
+  const complete = isProjectComplete(state.currentProjectId);
+  $("addTransactionBtn").classList.toggle("hidden", complete);
 }
 
 // ---------------------------------------------------------------
@@ -1158,6 +1263,10 @@ async function addOrUpdateBudget(nhom, hangMuc, amount) {
   }
   if (!state.currentProjectId) {
     showToast("Vui lòng chọn 1 dự án trước.");
+    return;
+  }
+  if (isProjectComplete(state.currentProjectId)) {
+    showToast("Dự án đã hoàn tất, không thể thêm/sửa ngân sách.");
     return;
   }
   const amt = Math.round(Number(amount) || 0);
@@ -1237,6 +1346,11 @@ async function submitTransactionForm(evt) {
     showToast("Vui lòng chọn 1 dự án trước khi thêm giao dịch.");
     return;
   }
+  if (isProjectComplete(state.currentProjectId)) {
+    closeModal("txModal");
+    showToast("Dự án đã hoàn tất, không thể thêm/sửa giao dịch.");
+    return;
+  }
   const id = $("txId").value;
   const tx = {
     id: id || genId(),
@@ -1312,6 +1426,11 @@ async function submitTransactionForm(evt) {
 async function deleteCurrentTransaction() {
   const id = $("txId").value;
   if (!id) return;
+  if (isProjectComplete(state.currentProjectId)) {
+    closeModal("txModal");
+    showToast("Dự án đã hoàn tất, không thể xoá giao dịch.");
+    return;
+  }
   if (!confirm("Xoá giao dịch này?")) return;
 
   const existing = state.transactions.find((t) => t.id === id);
@@ -1482,6 +1601,10 @@ function openAddTransactionModal() {
     showToast("Vui lòng chọn 1 dự án trước khi thêm giao dịch.");
     return;
   }
+  if (isProjectComplete(state.currentProjectId)) {
+    showToast("Dự án đã hoàn tất, không thể thêm giao dịch mới.");
+    return;
+  }
   $("txModalTitle").textContent = "Thêm giao dịch";
   $("txId").value = "";
   $("txAmount").value = "";
@@ -1493,6 +1616,10 @@ function openAddTransactionModal() {
 }
 
 function openEditTransactionModal(tx) {
+  if (isProjectComplete(state.currentProjectId)) {
+    showToast("Dự án đã hoàn tất, không thể sửa/xoá giao dịch.");
+    return;
+  }
   $("txModalTitle").textContent = "Sửa giao dịch";
   $("txId").value = tx.id;
   $("txAmount").value = formatNumberInput(tx.soTien);
@@ -1593,6 +1720,10 @@ function wireEvents() {
   $("backToProjectsBtn").addEventListener("click", backToProjectsOverview);
 
   $("projectList").addEventListener("click", (e) => {
+    if (e.target.closest(".complete-toggle")) {
+      // Bấm vào ô "Hoàn tất" - không mở/sửa dự án, xử lý riêng ở sự kiện "change".
+      return;
+    }
     const editBtn = e.target.closest("[data-edit-project]");
     if (editBtn) {
       openEditProjectModal(editBtn.dataset.editProject);
@@ -1601,6 +1732,12 @@ function wireEvents() {
     const card = e.target.closest(".project-card");
     if (!card) return;
     openProject(card.dataset.id);
+  });
+
+  $("projectList").addEventListener("change", (e) => {
+    const chk = e.target.closest("[data-toggle-complete]");
+    if (!chk) return;
+    toggleProjectComplete(chk.dataset.toggleComplete);
   });
 
   $("addTransactionBtn").addEventListener("click", openAddTransactionModal);

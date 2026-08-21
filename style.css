@@ -218,6 +218,7 @@ html, body {
   transition: background .12s ease;
 }
 .project-card:hover { background: var(--surface-2); }
+.project-card.is-complete { opacity: .65; }
 .project-card-head {
   display: flex;
   justify-content: space-between;
@@ -240,14 +241,33 @@ html, body {
 }
 .card-edit-btn:hover { background: var(--surface-2); color: var(--text); }
 .project-card-note { font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+.project-card-body { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .project-card-stats { display: flex; gap: 12px; flex-wrap: wrap; }
 .project-stat { font-size: 12px; color: var(--text-dim); }
 .project-stat strong { display: block; font-size: 14px; color: var(--text); margin-top: 2px; }
 .project-stat.expense strong { color: var(--expense); }
 .project-stat.remaining strong.over-budget { color: var(--expense); }
+.project-card-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.complete-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.complete-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.project-date-stats { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.project-date-stats .project-stat { text-align: right; }
 
 /* ---------- Nhà cung cấp / Đội thi công (danh sách theo dự án) ---------- */
-.partner-groups { display: flex; flex-direction: column; gap: 16px; }
+.partner-groups-row { display: flex; gap: 12px; align-items: flex-start; }
+.partner-column { flex: 1; min-width: 0; }
 .partner-group-title {
   font-size: 12px;
   font-weight: 700;
@@ -257,18 +277,27 @@ html, body {
   margin-bottom: 8px;
 }
 .partner-group-list { display: flex; flex-direction: column; gap: 8px; }
+.partner-group-list.scrollable { max-height: 248px; overflow-y: auto; padding-right: 2px; }
 .partner-item {
   background: var(--surface);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
-.partner-item-main { display: flex; align-items: center; gap: 4px; }
-.partner-item-name { font-size: 14px; font-weight: 600; }
-.partner-item-amount { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.partner-item-main { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.partner-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.partner-item-amount { font-size: 11px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+.empty-hint.small { padding: 8px 0; font-size: 12px; }
 
 /* ---------- Filters ---------- */
 .filter-row { display: flex; gap: 10px; margin-top: 22px; }
